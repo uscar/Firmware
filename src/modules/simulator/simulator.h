@@ -211,7 +211,8 @@ private:
 	_baro_pub(nullptr),
 	_gyro_pub(nullptr),
 	_mag_pub(nullptr),
-	_initialized(false)
+	_initialized(false),
+	_vehicle_status_updated(false)
 #ifndef __PX4_QURT
 	,
 	_rc_channels_pub(nullptr),
@@ -246,6 +247,7 @@ private:
 	orb_advert_t _mag_pub;
 
 	bool _initialized;
+	bool _vehicle_status_updated;
 
 	// class methods
 	int publish_sensor_topics(mavlink_hil_sensor_t *imu);

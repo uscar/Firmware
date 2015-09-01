@@ -66,6 +66,7 @@ using namespace simulator;
 void Simulator::pack_actuator_message(mavlink_hil_controls_t &actuator_msg) {
 	float out[8];
 
+
 	const float pwm_center = (PWM_HIGHEST_MAX + PWM_LOWEST_MIN) / 2;
 
 	// for now we only support quadrotors
@@ -93,6 +94,12 @@ void Simulator::pack_actuator_message(mavlink_hil_controls_t &actuator_msg) {
 		for (unsigned i = 0; i < 8; i++) {
 			out[i] = (_actuators.output[i] - 1500) / 600.0f;
 		}
+	}
+
+	// if the vehicle status has not yet been updated set outputs to zero since
+	// we don't know what type of vehicle we are simulating
+	if (!_vehicle_status_updated) {
+		memset(out, 0, sizeof(out));
 	}
 
 	actuator_msg.time_usec = hrt_absolute_time();
@@ -288,6 +295,10 @@ void Simulator::poll_topics() {
 	orb_check(_vehicle_status_sub, &updated);
 	if (updated) {
 		orb_copy(ORB_ID(vehicle_status), _vehicle_status_sub, &_vehicle_status);
+
+		if (!_vehicle_status_updated) {
+			_vehicle_status_updated = true;
+		}
 	}
 }
 
