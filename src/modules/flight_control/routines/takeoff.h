@@ -10,10 +10,10 @@ public:
 
   bool ExecuteCycle();
 
-  float curr_throttle() { return curr_throttle_; }
+  float current_throttle() { return current_throttle_; }
 
 private:
-  float curr_throttle_;
+  float current_throttle_;
 };
 
 #endif

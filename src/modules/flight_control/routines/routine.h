@@ -7,7 +7,7 @@
 
 class Routine {
 public:
-  Routine(const routine_codes::Code _routine_code, const std::string _name)
+  Routine(const routine_codes::Code _routine_code, const char* _name)
       : routine_code_(_routine_code), name_(_name) { }
 
   virtual ~Routine() { }
@@ -23,12 +23,16 @@ public:
     return true;
   }
 
-  const std::string& name() const { return name_; }
+  // Each routine should update parameters after every cycle from whatever
+  // uORB subscriptions is might have.
+  virtual void UpdateParameters() { }
+
+  const char* name() const { return name_; }
   routine_codes::Code routine_code() const { return routine_code_; }
 
 protected:
   const routine_codes::Code routine_code_;
-  const std::string name_;
+  const char* name_;
 
   int count_; // Used for periodic debugging.
   

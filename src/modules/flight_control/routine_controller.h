@@ -30,13 +30,15 @@ public:
     delete [] routine_list;
   }
 
-  void ExecuteCurrRoutine();
+  void ExecuteCurrentRoutine();
 
   void SetCurrentRoutine(routine_codes::Code code);
 
-  const std::string& curr_routine_name() const { return curr_routine_->name(); }
+  const char* current_routine_name() const {
+    return current_routine_->name();
+  }
 private:
-  Routine* curr_routine_;
+  Routine* current_routine_;
   Routine** routine_list;
 };
 

@@ -4,16 +4,17 @@
 
 void RoutineController::SetCurrentRoutine(routine_codes::Code routine_code) {
   if(routine_code >= routine_codes::kRoutinesSize) {
-    curr_routine_ = routine_list[routine_codes::kDefaultRoutine];
+    printf("Error: Invalid routine: %d\n", routine_code);
+    current_routine_ = routine_list[routine_codes::kDefaultRoutine];
   } else {
-    curr_routine_ = routine_list[routine_code];
+    current_routine_ = routine_list[routine_code];
   }
-  printf("Switching to routine: %s\n", curr_routine_name().c_str());
+  printf("Info: Switching to routine: %s\n", current_routine_name());
 }
 
-void RoutineController::ExecuteCurrRoutine() {
-  if(curr_routine_->ExecuteCycle()) {
-    if(curr_routine_->routine_code() == routine_codes::kLanding) {
+void RoutineController::ExecuteCurrentRoutine() {
+  if(current_routine_->ExecuteCycle()) {
+    if(current_routine_->routine_code() == routine_codes::kLanding) {
       SetCurrentRoutine(routine_codes::kKillMotors);
     } else {
       SetCurrentRoutine(routine_codes::kDefaultRoutine);
