@@ -104,9 +104,9 @@ static inline void do_nothing(int level, ...)
 /****************************************************************************
  * Medium verbose settings for a default build
  ****************************************************************************/
-#define PX4_PANIC(FMT, ...)	qurt_log(_PX4_LOG_LEVEL_PANIC, __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
-#define PX4_ERR(FMT, ...)	qurt_log(_PX4_LOG_LEVEL_ERROR, __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
-#define PX4_WARN(FMT, ...) 	qurt_log(_PX4_LOG_LEVEL_WARN,  __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
+#define PX4_PANIC(FMT, ...)	qurt_log(_PX4_LOG_LEVEL_ALWAYS, __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
+#define PX4_ERR(FMT, ...)	qurt_log(_PX4_LOG_LEVEL_ALWAYS, __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
+#define PX4_WARN(FMT, ...) 	qurt_log(_PX4_LOG_LEVEL_ALWAYS,  __FILENAME__, __LINE__, FMT, ##__VA_ARGS__)
 #define PX4_DEBUG(FMT, ...) 	__px4_log_omit(_PX4_LOG_LEVEL_DEBUG, FMT, ##__VA_ARGS__)
 
 #endif

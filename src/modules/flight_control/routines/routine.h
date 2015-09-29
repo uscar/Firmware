@@ -1,8 +1,6 @@
 #ifndef ROUTINES_ROUTINE_H_
 #define ROUTINES_ROUTINE_H_
 
-#include <string>
-
 #include "routine_codes.h"
 
 class Routine {
