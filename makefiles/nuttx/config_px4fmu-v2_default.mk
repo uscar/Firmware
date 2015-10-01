@@ -14,6 +14,8 @@ ROMFS_OPTIONAL_FILES = $(PX4_BASE)/Images/px4io-v2_default.bin
 #
 
 MODULES		+= modules/flight_control
+MODULES   += modules/uscar_att_pos_estimator
+MODULES   += modules/uscar_pos_control
 
 #
 # Board support modules
