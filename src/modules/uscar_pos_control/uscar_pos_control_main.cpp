@@ -96,7 +96,7 @@
  *
  * @ingroup apps
  */
-extern "C" __EXPORT int mc_pos_control_main(int argc, char *argv[]);
+extern "C" __EXPORT int uscar_pos_control_main(int argc, char *argv[]);
 
 class MulticopterPositionControl : public control::SuperBlock
 {
@@ -1489,7 +1489,7 @@ MulticopterPositionControl::start()
 	ASSERT(_control_task == -1);
 
 	/* start the task */
-	_control_task = px4_task_spawn_cmd("mc_pos_control",
+	_control_task = px4_task_spawn_cmd("uscar_mc_pos_control",
 				       SCHED_DEFAULT,
 				       SCHED_PRIORITY_MAX - 5,
 				       1500,
@@ -1504,10 +1504,10 @@ MulticopterPositionControl::start()
 	return OK;
 }
 
-int mc_pos_control_main(int argc, char *argv[])
+int uscar_pos_control_main(int argc, char *argv[])
 {
 	if (argc < 2) {
-		warnx("usage: mc_pos_control {start|stop|status}");
+		warnx("usage: uscar_mc_pos_control {start|stop|status}");
 		return 1;
 	}
 

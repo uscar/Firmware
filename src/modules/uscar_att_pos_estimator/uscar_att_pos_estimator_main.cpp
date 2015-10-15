@@ -124,7 +124,7 @@ AttitudePositionEstimatorEKF::AttitudePositionEstimatorEKF() :
 	_distance_sub(-1),
 	_airspeed_sub(-1),
 	_baro_sub(-1),
-	///_gps_sub(-1),
+	_gps_sub(-1),
 	_vstatus_sub(-1),
 	_params_sub(-1),
 	_manual_control_sub(-1),
@@ -1398,98 +1398,98 @@ void AttitudePositionEstimatorEKF::pollData()
 		perf_count(_perf_baro);
 	}
 
-//
-//	bool gps_update;
-//	orb_check(_gps_sub, &gps_update);
-//
-//	if (gps_update) {
-//		orb_copy(ORB_ID(vehicle_gps_position), _gps_sub, &_gps);
-//		perf_count(_perf_gps);
-//
-//		//We are more strict for our first fix
-//		float requiredAccuracy = _parameters.pos_stddev_threshold;
-//
-//		if (_gpsIsGood) {
-//			requiredAccuracy = _parameters.pos_stddev_threshold * 2.0f;
-//		}
-//
-//		if (_gpsIsGood) {
-//
-//			//Calculate time since last good GPS fix
-//			const float dtLastGoodGPS = static_cast<float>(_gps.timestamp_position - _previousGPSTimestamp) / 1e6f;
-//
-//
-//			//Fetch new GPS data
-//			_ekf->GPSstatus = _gps.fix_type;
-//			_ekf->velNED[0] = _gps.vel_n_m_s;
-//			_ekf->velNED[1] = _gps.vel_e_m_s;
-//			_ekf->velNED[2] = _gps.vel_d_m_s;
-//
-//			_ekf->gpsLat = math::radians(_gps.lat / (double)1e7);
-//			_ekf->gpsLon = math::radians(_gps.lon / (double)1e7) - M_PI;
-//			_ekf->gpsHgt = _gps.alt / 1e3f;
-//
-//			if (_previousGPSTimestamp != 0) {
-//				//Calculate average time between GPS updates
-//				_ekf->updateDtGpsFilt(math::constrain(dtLastGoodGPS, 0.01f, POS_RESET_THRESHOLD));
-//
-//				// update LPF
-//				float filter_step = (dtLastGoodGPS / (rc + dtLastGoodGPS)) * (_ekf->gpsHgt - _gps_alt_filt);
-//
-//				if (PX4_ISFINITE(filter_step)) {
-//					_gps_alt_filt += filter_step;
-//				}
-//			}
-//
-//			//check if we had a GPS outage for a long time
-//			if (_gps_initialized) {
-//
-//				//Convert from global frame to local frame
-//				map_projection_project(&_pos_ref, (_gps.lat / 1.0e7), (_gps.lon / 1.0e7), &_ekf->posNE[0], &_ekf->posNE[1]); 
-// 				TODO(Ananth): Change map_projection_project to our own local frame
-//
-//				if (dtLastGoodGPS > POS_RESET_THRESHOLD) {
-//					_ekf->ResetPosition();
-//					_ekf->ResetVelocity();
-//				}
-//			}
-//
-//			//PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtGoodGPS);
-//
-//			// if (_gps.s_variance_m_s > 0.25f && _gps.s_variance_m_s < 100.0f * 100.0f) {
-//			//	_ekf->vneSigma = sqrtf(_gps.s_variance_m_s);
-//			// } else {
-//			//	_ekf->vneSigma = _parameters.velne_noise;
-//			// }
-//
-//			// if (_gps.p_variance_m > 0.25f && _gps.p_variance_m < 100.0f * 100.0f) {
-//			//	_ekf->posNeSigma = sqrtf(_gps.p_variance_m);
-//			// } else {
-//			//	_ekf->posNeSigma = _parameters.posne_noise;
-//			// }
-//
-//			// PX4_INFO("vel: %8.4f pos: %8.4f", _gps.s_variance_m_s, _gps.p_variance_m);
-//
-//			_previousGPSTimestamp = _gps.timestamp_position;
-//
-//		}
-//	}
-//
-//	// If it has gone more than POS_RESET_THRESHOLD amount of seconds since we received a GPS update,
-//	// then something is very wrong with the GPS (possibly a hardware failure or comlink error)
-//	const float dtLastGoodGPS = static_cast<float>(hrt_absolute_time() - _previousGPSTimestamp) / 1e6f;
-//
-//	if (dtLastGoodGPS >= POS_RESET_THRESHOLD) {
-//
-//		if (_global_pos.dead_reckoning) {
-//			mavlink_log_info(_mavlink_fd, "[ekf] gave up dead-reckoning after long timeout");
-//		}
-//
-//		_gpsIsGood = false;
-//		_global_pos.dead_reckoning = false;
-//	}
-//
-//
+
+	bool gps_update;
+	orb_check(_gps_sub, &gps_update);
+
+	if (gps_update) {
+		orb_copy(ORB_ID(vehicle_gps_position), _gps_sub, &_gps);
+		perf_count(_perf_gps);
+
+		//We are more strict for our first fix
+		/*float requiredAccuracy = _parameters.pos_stddev_threshold;
+
+		if (_gpsIsGood) {
+			requiredAccuracy = _parameters.pos_stddev_threshold * 2.0f;
+		}*/
+
+		if (_gpsIsGood) {
+
+			//Calculate time since last good GPS fix
+			const float dtLastGoodGPS = static_cast<float>(_gps.timestamp_position - _previousGPSTimestamp) / 1e6f;
+
+
+			//Fetch new GPS data
+			_ekf->GPSstatus = _gps.fix_type;
+			_ekf->velNED[0] = _gps.vel_n_m_s;
+			_ekf->velNED[1] = _gps.vel_e_m_s;
+			_ekf->velNED[2] = _gps.vel_d_m_s;
+
+			_ekf->gpsLat = math::radians(_gps.lat / (double)1e7);
+			_ekf->gpsLon = math::radians(_gps.lon / (double)1e7) - M_PI;
+			_ekf->gpsHgt = _gps.alt / 1e3f;
+
+			if (_previousGPSTimestamp != 0) {
+				//Calculate average time between GPS updates
+				_ekf->updateDtGpsFilt(math::constrain(dtLastGoodGPS, 0.01f, POS_RESET_THRESHOLD));
+
+				// update LPF
+				float filter_step = (dtLastGoodGPS / (rc + dtLastGoodGPS)) * (_ekf->gpsHgt - _gps_alt_filt);
+
+				if (PX4_ISFINITE(filter_step)) {
+					_gps_alt_filt += filter_step;
+				}
+			}
+
+			//check if we had a GPS outage for a long time
+			if (_gps_initialized) {
+
+				//Convert from global frame to local frame
+				map_projection_project(&_pos_ref, (_gps.lat / 1.0e7), (_gps.lon / 1.0e7), &_ekf->posNE[0], &_ekf->posNE[1]);
+ 				//TODO(Ananth): Change map_projection_project to our own local frame
+
+				if (dtLastGoodGPS > POS_RESET_THRESHOLD) {
+					_ekf->ResetPosition();
+					_ekf->ResetVelocity();
+				}
+			}
+
+			//PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtGoodGPS);
+
+			// if (_gps.s_variance_m_s > 0.25f && _gps.s_variance_m_s < 100.0f * 100.0f) {
+			//	_ekf->vneSigma = sqrtf(_gps.s_variance_m_s);
+			// } else {
+			//	_ekf->vneSigma = _parameters.velne_noise;
+			// }
+
+			// if (_gps.p_variance_m > 0.25f && _gps.p_variance_m < 100.0f * 100.0f) {
+			//	_ekf->posNeSigma = sqrtf(_gps.p_variance_m);
+			// } else {
+			//	_ekf->posNeSigma = _parameters.posne_noise;
+			// }
+
+			// PX4_INFO("vel: %8.4f pos: %8.4f", _gps.s_variance_m_s, _gps.p_variance_m);
+
+			_previousGPSTimestamp = _gps.timestamp_position;
+
+		}
+	}
+
+	// If it has gone more than POS_RESET_THRESHOLD amount of seconds since we received a GPS update,
+	// then something is very wrong with the GPS (possibly a hardware failure or comlink error)
+	const float dtLastGoodGPS = static_cast<float>(hrt_absolute_time() - _previousGPSTimestamp) / 1e6f;
+
+	if (dtLastGoodGPS >= POS_RESET_THRESHOLD) {
+
+		if (_global_pos.dead_reckoning) {
+			mavlink_log_info(_mavlink_fd, "[ekf] gave up dead-reckoning after long timeout");
+		}
+
+		_gpsIsGood = false;
+		_global_pos.dead_reckoning = false;
+	}
+
+
 
 	//Update Magnetometer
 	if (_newDataMag) {
