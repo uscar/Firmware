@@ -24,6 +24,7 @@ protected:
 	static USCARPositionPublisher* publisher_pointer;
 private:
 	USCARPositionPublisher();
+	long long counter;
 };
 
 #endif /* USCARPOSITIONPUBLISHER_H_ */

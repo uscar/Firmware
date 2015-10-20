@@ -530,7 +530,7 @@ void AttitudePositionEstimatorEKF::task_main()
 	_distance_sub = orb_subscribe(ORB_ID(distance_sensor));
 	_baro_sub = orb_subscribe_multi(ORB_ID(sensor_baro), 0);
 	_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
-	// _gps_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
+	_gps_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 	_vstatus_sub = orb_subscribe(ORB_ID(vehicle_status));
 	_params_sub = orb_subscribe(ORB_ID(parameter_update));
 	_home_sub = orb_subscribe(ORB_ID(home_position));
@@ -1403,6 +1403,7 @@ void AttitudePositionEstimatorEKF::pollData()
 	orb_check(_gps_sub, &gps_update);
 
 	if (gps_update) {
+		//printf("GPSUpdate\n");
 		orb_copy(ORB_ID(vehicle_gps_position), _gps_sub, &_gps);
 		perf_count(_perf_gps);
 
@@ -1412,12 +1413,12 @@ void AttitudePositionEstimatorEKF::pollData()
 		if (_gpsIsGood) {
 			requiredAccuracy = _parameters.pos_stddev_threshold * 2.0f;
 		}*/
-
+		//printf("T: %f\n\n", (double) _gps.timestamp_position);
 		if (_gpsIsGood) {
 
+			//printf("GPSGood\n");
 			//Calculate time since last good GPS fix
 			const float dtLastGoodGPS = static_cast<float>(_gps.timestamp_position - _previousGPSTimestamp) / 1e6f;
-
 
 			//Fetch new GPS data
 			_ekf->GPSstatus = _gps.fix_type;
@@ -1454,7 +1455,7 @@ void AttitudePositionEstimatorEKF::pollData()
 				}
 			}
 
-			//PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtGoodGPS);
+			PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtLastGoodGPS);
 
 			// if (_gps.s_variance_m_s > 0.25f && _gps.s_variance_m_s < 100.0f * 100.0f) {
 			//	_ekf->vneSigma = sqrtf(_gps.s_variance_m_s);
@@ -1478,7 +1479,6 @@ void AttitudePositionEstimatorEKF::pollData()
 	// If it has gone more than POS_RESET_THRESHOLD amount of seconds since we received a GPS update,
 	// then something is very wrong with the GPS (possibly a hardware failure or comlink error)
 	const float dtLastGoodGPS = static_cast<float>(hrt_absolute_time() - _previousGPSTimestamp) / 1e6f;
-
 	if (dtLastGoodGPS >= POS_RESET_THRESHOLD) {
 
 		if (_global_pos.dead_reckoning) {

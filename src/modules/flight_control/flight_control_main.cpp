@@ -27,6 +27,7 @@
 #include <systemlib/systemlib.h>
 #include <poll.h>
 #include <platforms/px4_defines.h>
+#include <time.h>
 
 #include "./routines/routine_codes.h"
 #include "routine_controller.h"
@@ -41,6 +42,8 @@ USCARPositionPublisher::USCARPositionPublisher():
 	_custom_pos_pub(nullptr),
 	_custom_gps_msg({})
 {
+	memset(&_custom_gps_msg, 0, sizeof(_custom_gps_msg));
+	counter = 0;
 	// TODO Auto-generated constructor stub
 }
 
@@ -60,19 +63,20 @@ USCARPositionPublisher::~USCARPositionPublisher() {
 void USCARPositionPublisher::publishUSCARPosData()
 {
 	//update struct
-	_custom_gps_msg.lat = 18;
-	_custom_gps_msg.lon = 18;
-	_custom_gps_msg.alt = 18;
+	_custom_gps_msg.lat = (int32_t) (18e7 - counter * 1e5);
+	_custom_gps_msg.lon = (int32_t) (18e7 + counter * 1e5);
+	_custom_gps_msg.alt = (int32_t) (18e3 + (double) counter / 1e5);
 	_custom_gps_msg.vel_m_s = 7;
 	_custom_gps_msg.vel_n_m_s = 7;
 	_custom_gps_msg.vel_e_m_s = 7;
 	_custom_gps_msg.vel_d_m_s = 7;
-	_custom_gps_msg.satellites_used = hrt_absolute_time();
-	_custom_gps_msg.timestamp_position = hrt_absolute_time();
-	_custom_gps_msg.timestamp_variance = hrt_absolute_time();
-	_custom_gps_msg.timestamp_velocity = hrt_absolute_time();
-	_custom_gps_msg.timestamp_time = hrt_absolute_time();
-	_custom_gps_msg.time_utc_usec = hrt_absolute_time();
+	_custom_gps_msg.satellites_used = (uint8_t) 20;
+
+	_custom_gps_msg.timestamp_position = (uint64_t) hrt_absolute_time();
+	_custom_gps_msg.timestamp_variance = (uint64_t) hrt_absolute_time();
+	_custom_gps_msg.timestamp_velocity = (uint64_t) hrt_absolute_time();
+	_custom_gps_msg.timestamp_time = (uint64_t) hrt_absolute_time();
+	_custom_gps_msg.time_utc_usec = (uint64_t) hrt_absolute_time();
 
 	/* lazily publish the local position only once available */
 	if (_custom_pos_pub != nullptr) {
@@ -83,6 +87,7 @@ void USCARPositionPublisher::publishUSCARPosData()
 		/* advertise and publish */
 		_custom_pos_pub = orb_advertise(ORB_ID(vehicle_gps_position), &_custom_gps_msg);
 	}
+	counter++;
 }
 
 void USCARPositionPublisher::main_trampoline(int argc, char *argv[])
@@ -90,7 +95,7 @@ void USCARPositionPublisher::main_trampoline(int argc, char *argv[])
 	while (true)
 	{
 		USCARPositionPublisher::Get()->publishUSCARPosData();
-		usleep(20);
+		usleep(500); //was 10
 	}
 }
 
