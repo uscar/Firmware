@@ -1455,7 +1455,7 @@ void AttitudePositionEstimatorEKF::pollData()
 				}
 			}
 
-			PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtLastGoodGPS);
+			//PX4_INFO("gps alt: %6.1f, interval: %6.3f", (double)_ekf->gpsHgt, (double)dtLastGoodGPS);
 
 			// if (_gps.s_variance_m_s > 0.25f && _gps.s_variance_m_s < 100.0f * 100.0f) {
 			//	_ekf->vneSigma = sqrtf(_gps.s_variance_m_s);

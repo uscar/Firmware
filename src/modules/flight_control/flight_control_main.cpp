@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <cmath>
 #include <uORB/uORB.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/actuator_armed.h>
@@ -62,15 +63,47 @@ USCARPositionPublisher::~USCARPositionPublisher() {
 
 void USCARPositionPublisher::publishUSCARPosData()
 {
+	/* NEED TO PROVIDE:
+	 * N, E, D (m/s)
+	 * Fix type
+	 * vel_ned_valid
+	 * satellites_used
+	 *
+	 * Optional:
+	 * LAT, LON, ALT
+	 * If used, position based on these
+	 * Otherwise, integrated velocity
+	 *
+	 * Make this dynamic so that pos_controller feedback goes here
+	 * for simulating closed-loop control
+	 */
 	//update struct
-	_custom_gps_msg.lat = (int32_t) (18e7 - counter * 1e5);
-	_custom_gps_msg.lon = (int32_t) (18e7 + counter * 1e5);
-	_custom_gps_msg.alt = (int32_t) (18e3 + (double) counter / 1e5);
-	_custom_gps_msg.vel_m_s = 7;
-	_custom_gps_msg.vel_n_m_s = 7;
-	_custom_gps_msg.vel_e_m_s = 7;
-	_custom_gps_msg.vel_d_m_s = 7;
+	//_custom_gps_msg.lat = (int32_t) (18e7 - counter * 1e2);
+	//_custom_gps_msg.lon = (int32_t) (18e7 + counter * 1e2);
+	_custom_gps_msg.alt = (int32_t) (100. + ((double) counter));
+	_custom_gps_msg.vel_n_m_s = 3 + ((double) counter / 1.0e3);
+	_custom_gps_msg.vel_e_m_s = 3 + ((double) counter / 1.0e3);
+	_custom_gps_msg.vel_d_m_s = 3 + ((double) counter / 1.0e3);
+	/*_custom_gps_msg.vel_m_s =
+		sqrt(_custom_gps_msg.vel_n_m_s * _custom_gps_msg.vel_n_m_s +
+		_custom_gps_msg.vel_e_m_s * _custom_gps_msg.vel_e_m_s +
+		_custom_gps_msg.vel_d_m_s * _custom_gps_msg.vel_d_m_s);*/
 	_custom_gps_msg.satellites_used = (uint8_t) 20;
+
+	//_custom_gps_msg.s_variance_m_s = .5f;
+	//_custom_gps_msg.c_variance_rad = .1f;
+	_custom_gps_msg.fix_type = 3;
+
+	//_custom_gps_msg.eph = .1;
+	//_custom_gps_msg.epv = .1;
+
+	//_custom_gps_msg.noise_per_ms = 0;
+	//_custom_gps_msg.cog_rad = atan(_custom_gps_msg.vel_n_m_s / _custom_gps_msg.vel_e_m_s);
+	_custom_gps_msg.vel_ned_valid = true;
+
+
+	//printf("Lat: %f\n", (double) _custom_gps_msg.lat);
+	//printf("Alt: %f\n", (double) _custom_gps_msg.alt);
 
 	_custom_gps_msg.timestamp_position = (uint64_t) hrt_absolute_time();
 	_custom_gps_msg.timestamp_variance = (uint64_t) hrt_absolute_time();
