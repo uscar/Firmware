@@ -64,6 +64,10 @@ CMakeLists.txt.user
 GPATH
 GRTAGS
 GTAGS
+*.creator
+*.creator.user
+*.files
+*.includes
 
 # uavcan firmware
 ROMFS/px4fmu_common/uavcan/

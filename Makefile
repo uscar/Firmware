@@ -42,7 +42,7 @@ endif
 CMAKE_VER := $(shell Tools/check_cmake.sh; echo $$?)
 ifneq ($(CMAKE_VER),0)
     $(warning Not a valid CMake version or CMake not installed.)
-    $(warning On Ubuntu, install or upgrade via:)
+    $(warning On Ubuntu 16.04, install or upgrade via:)
     $(warning )
     $(warning 3rd party PPA:)
     $(warning sudo add-apt-repository ppa:george-edison55/cmake-3.x -y)
@@ -50,11 +50,11 @@ ifneq ($(CMAKE_VER),0)
     $(warning sudo apt-get install cmake)
     $(warning )
     $(warning Official website:)
-    $(warning wget https://cmake.org/files/v3.3/cmake-3.3.2-Linux-x86_64.sh)
-    $(warning chmod +x cmake-3.3.2-Linux-x86_64.sh)
-    $(warning sudo mkdir /opt/cmake-3.3.2)
-    $(warning sudo ./cmake-3.3.2-Linux-x86_64.sh --prefix=/opt/cmake-3.3.2 --exclude-subdir)
-    $(warning export PATH=/opt/cmake-3.3.2/bin:$$PATH)
+    $(warning wget https://cmake.org/files/v3.4/cmake-3.4.3-Linux-x86_64.sh)
+    $(warning chmod +x cmake-3.4.3-Linux-x86_64.sh)
+    $(warning sudo mkdir /opt/cmake-3.4.3)
+    $(warning sudo ./cmake-3.4.3-Linux-x86_64.sh --prefix=/opt/cmake-3.4.3 --exclude-subdir)
+    $(warning export PATH=/opt/cmake-3.4.3/bin:$$PATH)
     $(warning )
     $(error Fatal)
 endif
@@ -77,7 +77,7 @@ endif
 # in that directory with the target upload.
 
 #  explicity set default build target
-all: px4fmu-v2_default
+all: posix_sitl_default
 
 # Parsing
 # --------------------------------------------------------------------
@@ -100,91 +100,80 @@ ifdef SYSTEMROOT
 else
 	PX4_CMAKE_GENERATOR ?= "Unix Makefiles"
 endif
-    PX4_MAKE = make
+    PX4_MAKE = $(MAKE)
     PX4_MAKE_ARGS = -j$(j) --no-print-directory
 endif
+
+# check if replay env variable is set & set build dir accordingly
+ifdef replay
+	BUILD_DIR_SUFFIX := _replay
+else
+	BUILD_DIR_SUFFIX :=
+endif
+
+SRC_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 # Functions
 # --------------------------------------------------------------------
 # describe how to build a cmake config
 define cmake-build
-+@if [ $(PX4_CMAKE_GENERATOR) = "Ninja" ] && [ -e $(PWD)/build_$@/Makefile ]; then rm -rf $(PWD)/build_$@; fi
-+@if [ ! -e $(PWD)/build_$@/CMakeCache.txt ]; then Tools/check_submodules.sh && mkdir -p $(PWD)/build_$@ && cd $(PWD)/build_$@ && cmake .. -G$(PX4_CMAKE_GENERATOR) -DCONFIG=$(1) || (cd .. && rm -rf $(PWD)/build_$@); fi
-+@Tools/check_submodules.sh
-+$(PX4_MAKE) -C $(PWD)/build_$@ $(PX4_MAKE_ARGS) $(ARGS)
++@$(eval BUILD_DIR = $(SRC_DIR)/build_$@$(BUILD_DIR_SUFFIX))
++@if [ $(PX4_CMAKE_GENERATOR) = "Ninja" ] && [ -e $(BUILD_DIR)/Makefile ]; then rm -rf $(BUILD_DIR); fi
++@if [ ! -e $(BUILD_DIR)/CMakeCache.txt ]; then mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake .. -G$(PX4_CMAKE_GENERATOR) -DCONFIG=$(1) || (cd .. && rm -rf $(BUILD_DIR)); fi
++@echo "PX4 CONFIG: $(BUILD_DIR)"
++@$(PX4_MAKE) -C "$(BUILD_DIR)" $(PX4_MAKE_ARGS) $(ARGS)
 endef
 
-# create empty targets to avoid msgs for targets passed to cmake
-define cmake-targ
+define cmake-build-other
++@$(eval BUILD_DIR = $(SRC_DIR)/build_$@$(BUILD_DIR_SUFFIX))
++@if [ $(PX4_CMAKE_GENERATOR) = "Ninja" ] && [ -e $(BUILD_DIR)/Makefile ]; then rm -rf $(BUILD_DIR); fi
++@if [ ! -e $(BUILD_DIR)/CMakeCache.txt ]; then mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake $(2) -G$(PX4_CMAKE_GENERATOR) -DCONFIG=$(1) || (cd .. && rm -rf $(BUILD_DIR)); fi
++@$(PX4_MAKE) -C "$(BUILD_DIR)" $(PX4_MAKE_ARGS) $(ARGS)
+endef
+
+# create empty targets to avoid msgs for targets passed to PX4_MAKE
+define make-targ
 $(1):
 	@#
 .PHONY: $(1)
+endef
+
+define colorecho
+      @tput setaf 6
+      @echo $1
+      @tput sgr0
 endef
 
 # ADD CONFIGS HERE
 # --------------------------------------------------------------------
 #  Do not put any spaces between function arguments.
 
-px4fmu-v1_default:
-	$(call cmake-build,nuttx_px4fmu-v1_default)
+# For a list of all config targets, please look in cmake/configs,
+# For example: ls cmake/configs | sed -e 's/\.cmake$//'
 
-px4fmu-v2_default:
-	$(call cmake-build,nuttx_px4fmu-v2_default)
-
-px4fmu-v4_default:
-	$(call cmake-build,nuttx_px4fmu-v4_default)
-
-px4-stm32f4discovery_default:
-	$(call cmake-build,nuttx_px4-stm32f4discovery_default)
-
-px4fmu-v2_ekf2:
-	$(call cmake-build,nuttx_px4fmu-v2_ekf2)
-
-px4fmu-v2_lpe:
-	$(call cmake-build,nuttx_px4fmu-v2_lpe)
-
-mindpx-v2_default:
-	$(call cmake-build,nuttx_mindpx-v2_default)
-
-posix_sitl_default:
+# All nuttx, posix and qurt targets.
+nuttx_% posix_% qurt_%:
 	$(call cmake-build,$@)
 
-posix_sitl_lpe:
-	$(call cmake-build,$@)
+# Abbreviated config targets.
 
-posix_sitl_ekf2:
-	$(call cmake-build,$@)
+# nuttx_ is left off by default.
+tap-% asc-% px4fmu-% px4-% mindpx-% crazyflie_%:
+	$(call cmake-build,nuttx_$@)
 
-posix_sitl_replay:
-	$(call cmake-build,$@)
+posix: posix_sitl_default
+broadcast: posix_sitl_broadcast
+
+# Multi- config targets.
+
+eagle_default: posix_eagle_default qurt_eagle_default
+eagle_legacy_default: posix_eagle_legacy_driver_default qurt_eagle_legacy_driver_default
+excelsior_default: posix_excelsior_default qurt_excelsior_default
+
+# Deprecated config targets.
 
 ros_sitl_default:
 	@echo "This target is deprecated. Use make 'posix_sitl_default gazebo' instead."
-
-qurt_eagle_travis:
-	$(call cmake-build,$@)
-
-qurt_eagle_release:
-	$(call cmake-build,$@)
-
-posix_eagle_release:
-	$(call cmake-build,$@)
-
-qurt_eagle_default:
-	$(call cmake-build,$@)
-
-eagle_default: posix_eagle_default qurt_eagle_default
-
-posix_eagle_default:
-	$(call cmake-build,$@)
-
-posix_rpi2_default:
-	$(call cmake-build,$@)
-
-posix_rpi2_release:
-	$(call cmake-build,$@)
-
-posix: posix_sitl_default
 
 sitl_deprecation:
 	@echo "Deprecated. Use 'make posix_sitl_default jmavsim' or"
@@ -197,55 +186,118 @@ run_sitl_ros: sitl_deprecation
 # Other targets
 # --------------------------------------------------------------------
 
+.PHONY: uavcan_firmware check check_format unittest tests qgc_firmware package_firmware clean submodulesclean distclean
+.NOTPARALLEL: uavcan_firmware check check_format unittest tests qgc_firmware package_firmware clean submodulesclean distclean
+
 uavcan_firmware:
-	@(rm -rf vectorcontrol && git clone https://github.com/thiemar/vectorcontrol && cd vectorcontrol && BOARD=s2740vc_1_0 make --no-print-directory -s && BOARD=px4esc_1_6 make --no-print-directory -s && ../Tools/uavcan_copy.sh)
+ifeq ($(VECTORCONTROL),1)
+	$(call colorecho,"Downloading and building Vector control (FOC) firmware for the S2740VC and PX4ESC 1.6")
+	@(rm -rf vectorcontrol && git clone --quiet --depth 1 https://github.com/thiemar/vectorcontrol.git && cd vectorcontrol && BOARD=s2740vc_1_0 make --silent --no-print-directory && BOARD=px4esc_1_6 make --silent --no-print-directory && ../Tools/uavcan_copy.sh)
+endif
+
+checks_defaults: \
+	check_px4fmu-v1_default \
+	check_px4fmu-v2_default \
+	check_px4fmu-v4_default \
+	check_mindpx-v2_default \
+	check_tap-v1_default
+
+checks_bootloaders: \
+
+
+checks_tests: \
+	check_px4fmu-v2_test
+
+checks_alts: \
+	check_asc-v1_default \
+	check_px4-stm32f4discovery_default
+
+checks_uavcan: \
+	check_px4fmu-v4_default_and_uavcan
+
+checks_sitls: \
+	check_posix_sitl_default
+
+checks_last: \
+	check_tests \
+	check_format \
+
+check: checks_defaults checks_tests checks_alts checks_uavcan checks_bootloaders checks_last
+quick_check: check_posix_sitl_default check_px4fmu-v4_default check_tests check_format
 
 check_format:
-	@./Tools/check_code_style.sh
+	$(call colorecho,"Checking formatting with astyle")
+	@./Tools/check_code_style_all.sh
 
-check: px4fmu-v1_default px4fmu-v2_default px4fmu-v4_default px4-stm32f4discovery_default check_format tests
+format:
+	$(call colorecho,"Formatting with astyle")
+	@./Tools/check_code_style_all.sh --fix
+
+check_%:
+	@echo
+	$(call colorecho,"Building" $(subst check_,,$@))
+	@$(MAKE) --no-print-directory $(subst check_,,$@)
+	@echo
+
+check_px4fmu-v4_default: uavcan_firmware
+check_px4fmu-v4_default_and_uavcan: check_px4fmu-v4_default
+	@echo
+ifeq ($(VECTORCONTROL),1)
+	@echo "Cleaning up vectorcontrol firmware"
+	@rm -rf vectorcontrol
+	@rm -rf ROMFS/px4fmu_common/uavcan
+endif
 
 unittest: posix_sitl_default
-	@(cd unittests && cmake -G$(PX4_CMAKE_GENERATOR) && $(PX4_MAKE) $(PX4_MAKE_ARGS) && ctest)
+	$(call cmake-build-other,unittest, ../unittests)
+	@(cd build_unittest && ctest -j2 --output-on-failure)
 
-tests: unittest
-	@make --no-print-directory px4fmu-v2_default test
-	@make --no-print-directory posix_sitl_default test
+run_tests_posix: posix_sitl_default
+	@(cd build_posix_sitl_default/ && ctest -V)
+
+tests: check_unittest run_tests_posix
+
+# QGroundControl flashable firmware
+qgc_firmware: \
+	check_px4fmu-v1_default \
+	check_px4fmu-v2_default \
+	check_mindpx-v2_default \
+	check_tap-v1_default \
+	check_px4fmu-v4_default_and_uavcan \
+	check_format
+
+extra_firmware: \
+	check_px4-stm32f4discovery_default \
+	check_px4fmu-v2_test
 
 package_firmware:
 	@zip --junk-paths Firmware.zip `find . -name \*.px4`
 
 clean:
 	@rm -rf build_*/
-	@(cd NuttX/nuttx && make clean)
+	@$(MAKE) -C NuttX/nuttx clean
 
 submodulesclean:
+	@git submodule sync --recursive
 	@git submodule deinit -f .
-	@git submodule sync
 	@git submodule update --init --recursive --force
 
 distclean: submodulesclean
-	@git clean -ff -x -d
+	@git clean -ff -x -d -e ".project" -e ".cproject"
 
-# targets handled by cmake
-cmake_targets = test upload package package_source debug debug_tui debug_ddd debug_io debug_io_tui debug_io_ddd check_weak \
-	run_cmake_config config gazebo gazebo_gdb gazebo_lldb jmavsim replay \
-	jmavsim_gdb jmavsim_lldb gazebo_gdb_iris gazebo_lldb_tailsitter gazebo_iris gazebo_iris_opt_flow gazebo_tailsitter \
-	gazebo_gdb_standard_vtol gazebo_lldb_standard_vtol gazebo_standard_vtol gazebo_plane
-$(foreach targ,$(cmake_targets),$(eval $(call cmake-targ,$(targ))))
+# A list of all current viewers.
+viewers = gazebo jmavsim replay
+# A list of make patterns that match the viewer_model_debugger triplet 'targets'.
+sitl_vmd_triplet_masks = $(foreach viewer,$(viewers),$(viewer) $(viewer)_%)
+# targets handled by PX4_MAKE
+make_targets = install test upload package package_source debug debug_tui debug_ddd debug_io debug_io_tui debug_io_ddd check_weak \
+	run_cmake_config config list_vmd_make_targets list_cmake_targets $(sitl_vmd_triplet_masks)
+$(foreach targ,$(make_targets),$(eval $(call make-targ,$(targ))))
 
 .PHONY: clean
 
 CONFIGS:=$(shell ls cmake/configs | sed -e "s~.*/~~" | sed -e "s~\..*~~")
 
-# Future:
-#$(CONFIGS):
-##	@cd Build/$@ && cmake ../.. -DCONFIG=$@
-#	@cd Build/$@ && make
-#
-#clean-all:
-#	@rm -rf Build/*
-#
 #help:
 #	@echo
 #	@echo "Type 'make ' and hit the tab key twice to see a list of the available"

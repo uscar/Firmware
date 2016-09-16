@@ -1,6 +1,6 @@
 include(nuttx/px4_impl_nuttx)
 
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/toolchains/Toolchain-arm-none-eabi.cmake)
+set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/toolchains/Toolchain-arm-none-eabi.cmake)
 
 set(config_uavcan_num_ifaces 2)
 
@@ -15,7 +15,7 @@ set(config_module_list
 	drivers/led
 	drivers/px4fmu
 	#drivers/px4io
-	drivers/test_ppm
+	#drivers/test_ppm
 	drivers/boards/mindpx-v2
 	#drivers/rgbled
 	drivers/rgbled_pwm
@@ -48,7 +48,7 @@ set(config_module_list
 	#drivers/mkblctrl
 	drivers/px4flow
 	#drivers/oreoled
-	drivers/gimbal
+	drivers/vmount
 	drivers/pwm_input
 	drivers/camera_trigger
 	drivers/bst
@@ -64,18 +64,33 @@ set(config_module_list
 	systemcmds/pwm
 	systemcmds/esc_calib
 	systemcmds/reboot
-	#systemcmds/topic_listener
+	systemcmds/topic_listener
 	systemcmds/top
 	systemcmds/config
 	systemcmds/nshterm
 	systemcmds/mtd
 	systemcmds/dumpfile
 	systemcmds/ver
+	systemcmds/sd_bench
+	systemcmds/motor_ramp
+
+	#
+	# Tests
+	#
+	drivers/sf0x/sf0x_tests
+	drivers/test_ppm
+	modules/commander/commander_tests
+	modules/controllib_test
+	modules/mavlink/mavlink_tests
+	modules/unit_test
+	modules/uORB/uORB_tests
+	systemcmds/tests
 
 	#
 	# General system control
 	#
 	modules/commander
+	modules/load_mon
 	modules/navigator
 	modules/mavlink
 	modules/gpio_led
@@ -85,16 +100,14 @@ set(config_module_list
 	#
 	# Estimation modules (EKF/ SO3 / other filters)
 	#
-	# Too high RAM usage due to static allocations
-	# modules/attitude_estimator_ekf
 	modules/attitude_estimator_q
-	modules/ekf_att_pos_estimator
 	modules/position_estimator_inav
+	modules/local_position_estimator
+	modules/ekf2
 
 	#
 	# Vehicle Control
 	#
-	# modules/segway # XXX Needs GCC 4.7 fix
 	modules/fw_pos_control_l1
 	modules/fw_att_control
 	modules/mc_att_control
@@ -105,6 +118,7 @@ set(config_module_list
 	# Logging
 	#
 	modules/sdlog2
+	modules/logger
 
 	#
 	# Library modules
@@ -112,13 +126,13 @@ set(config_module_list
 	modules/param
 	modules/systemlib
 	modules/systemlib/mixer
-	modules/controllib
 	modules/uORB
 	modules/dataman
 
 	#
 	# Libraries
 	#
+	lib/controllib
 	lib/mathlib
 	lib/mathlib/math/filter
 	lib/ecl
@@ -130,10 +144,11 @@ set(config_module_list
 	lib/terrain_estimation
 	lib/runway_takeoff
 	lib/tailsitter_recovery
+	lib/DriverFramework/framework
 	platforms/nuttx
 
 	# had to add for cmake, not sure why wasn't in original config
-	platforms/common 
+	platforms/common
 	platforms/nuttx/px4_layer
 
 	#
@@ -144,7 +159,7 @@ set(config_module_list
 	#
 	# Rover apps
 	#
-	examples/rover_steering_control
+	#examples/rover_steering_control
 
 	#
 	# Demo apps
@@ -152,7 +167,7 @@ set(config_module_list
 	#examples/math_demo
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
-	examples/px4_simple_app
+	#examples/px4_simple_app
 
 	# Tutorial code from
 	# https://px4.io/dev/daemon
@@ -175,10 +190,6 @@ set(config_extra_builtin_cmds
 	sercon
 	)
 
-set(config_io_board
-	px4io-v2
-	)
-
 set(config_extra_libs
 	uavcan
 	uavcan_stm32_driver
@@ -189,8 +200,12 @@ set(config_io_extra_libs
 
 add_custom_target(sercon)
 set_target_properties(sercon PROPERTIES
-	MAIN "sercon" STACK "2048")
+	PRIORITY "SCHED_PRIORITY_DEFAULT"
+	MAIN "sercon"
+	STACK_MAIN "2048")
 
 add_custom_target(serdis)
 set_target_properties(serdis PROPERTIES
-	MAIN "serdis" STACK "2048")
+	PRIORITY "SCHED_PRIORITY_DEFAULT"
+	MAIN "serdis"
+	STACK_MAIN "2048")

@@ -245,11 +245,16 @@ PX4FLOW::init()
 	/* get a publish handle on the range finder topic */
 	struct distance_sensor_s ds_report = {};
 
-	_distance_sensor_topic = orb_advertise_multi(ORB_ID(distance_sensor), &ds_report,
-				 &_orb_class_instance, ORB_PRIO_HIGH);
+	if (_class_instance == CLASS_DEVICE_PRIMARY) {
+		_distance_sensor_topic = orb_advertise_multi(ORB_ID(distance_sensor), &ds_report,
+					 &_orb_class_instance, ORB_PRIO_HIGH);
 
-	if (_distance_sensor_topic == nullptr) {
-		DEVICE_LOG("failed to create distance_sensor object. Did you start uOrb?");
+		if (_distance_sensor_topic == nullptr) {
+			DEVICE_LOG("failed to create distance_sensor object. Did you start uOrb?");
+		}
+
+	} else {
+		DEVICE_LOG("not primary range device, not advertising");
 	}
 
 	ret = OK;
@@ -364,14 +369,14 @@ PX4FLOW::ioctl(struct file *filp, int cmd, unsigned long arg)
 				return -EINVAL;
 			}
 
-			irqstate_t flags = irqsave();
+			irqstate_t flags = px4_enter_critical_section();
 
 			if (!_reports->resize(arg)) {
-				irqrestore(flags);
+				px4_leave_critical_section(flags);
 				return -ENOMEM;
 			}
 
-			irqrestore(flags);
+			px4_leave_critical_section(flags);
 
 			return OK;
 		}
@@ -592,12 +597,12 @@ PX4FLOW::start()
 	work_queue(HPWORK, &_work, (worker_t)&PX4FLOW::cycle_trampoline, this, 1);
 
 	/* notify about state change */
-	struct subsystem_info_s info = {
-		true,
-		true,
-		true,
-		subsystem_info_s::SUBSYSTEM_TYPE_OPTICALFLOW
-	};
+	struct subsystem_info_s info = {};
+	info.present = true;
+	info.enabled = true;
+	info.ok = true;
+	info.subsystem_type = subsystem_info_s::SUBSYSTEM_TYPE_OPTICALFLOW;
+
 	static orb_advert_t pub = nullptr;
 
 	if (pub != nullptr) {

@@ -5,8 +5,10 @@ set(CONFIG_SHMEM "1")
 # Run a full link with build stubs to make sure qurt target isn't broken
 set(QURT_ENABLE_STUBS "1")
 
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/cmake_hexagon/toolchain/Toolchain-qurt.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/cmake_hexagon/qurt_app.cmake)
+set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/cmake_hexagon/toolchain/Toolchain-qurt.cmake)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PX4_SOURCE_DIR}/cmake/cmake_hexagon")
+include(hexagon_sdk)
 
 if ("$ENV{HEXAGON_SDK_ROOT}" STREQUAL "")
 	message(FATAL_ERROR "Enviroment variable HEXAGON_SDK_ROOT must be set")
@@ -14,7 +16,9 @@ else()
 	set(HEXAGON_SDK_ROOT $ENV{HEXAGON_SDK_ROOT})
 endif()
 
-include_directories(${HEXAGON_SDK_ROOT}/lib/common/qurt/ADSPv5MP/include)
+include_directories(${HEXAGON_8074_INCLUDES})
+
+set(config_generate_parameters_scope ALL)
 
 set(config_module_list
 	drivers/device
@@ -31,12 +35,12 @@ set(config_module_list
 	systemcmds/mixer
 
 	#
-	# Estimation modules (EKF/ SO3 / other filters)
+	# Estimation modules
 	#
-	#modules/attitude_estimator_ekf
-	modules/ekf_att_pos_estimator
 	modules/attitude_estimator_q
 	modules/position_estimator_inav
+	modules/local_position_estimator
+	modules/ekf2
 
 	#
 	# Vehicle Control
@@ -52,11 +56,11 @@ set(config_module_list
 	modules/systemlib/mixer
 	modules/uORB
 	modules/commander
-	modules/controllib
 
 	#
 	# Libraries
 	#
+	lib/controllib
 	lib/mathlib
 	lib/mathlib/math/filter
 	lib/geo
@@ -66,6 +70,7 @@ set(config_module_list
 	lib/terrain_estimation
 	lib/runway_takeoff
 	lib/tailsitter_recovery
+	lib/DriverFramework/framework
 
 	#
 	# QuRT port

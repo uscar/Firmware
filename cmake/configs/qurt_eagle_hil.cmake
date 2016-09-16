@@ -1,7 +1,16 @@
 include(qurt/px4_impl_qurt)
 
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/cmake_hexagon/toolchain/Toolchain-qurt.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/cmake_hexagon/qurt_app.cmake)
+if ("$ENV{HEXAGON_SDK_ROOT}" STREQUAL "")
+	message(FATAL_ERROR "Enviroment variable HEXAGON_SDK_ROOT must be set")
+else()
+	set(HEXAGON_SDK_ROOT $ENV{HEXAGON_SDK_ROOT})
+endif()
+
+set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/cmake_hexagon/toolchain/Toolchain-qurt.cmake)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PX4_SOURCE_DIR}/cmake/cmake_hexagon")
+
+set(config_generate_parameters_scope ALL)
 
 set(config_module_list
 	drivers/device
@@ -18,12 +27,12 @@ set(config_module_list
 	systemcmds/mixer
 
 	#
-	# Estimation modules (EKF/ SO3 / other filters)
+	# Estimation modules
 	#
-	#modules/attitude_estimator_ekf
-	modules/ekf_att_pos_estimator
 	modules/attitude_estimator_q
 	modules/position_estimator_inav
+	modules/local_position_estimator
+	modules/ekf2
 
 	#
 	# Vehicle Control
@@ -51,7 +60,8 @@ set(config_module_list
 	lib/terrain_estimation
 	lib/runway_takeoff
 	lib/tailsitter_recovery
-	modules/controllib
+	lib/controllib
+	lib/DriverFramework/framework
 
 	#
 	# QuRT port

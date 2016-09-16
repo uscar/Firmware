@@ -38,6 +38,7 @@
  * @author Lorenz Meier <lorenz@px4.io>
  */
 
+#include <drivers/drv_hrt.h>
 #include <px4_posix.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,6 +48,7 @@
 #include <uORB/topics/mavlink_log.h>
 #include "mavlink_log.h"
 
+#define MAVLINK_LOG_QUEUE_SIZE 5
 
 
 __EXPORT void mavlink_vasprintf(int severity, orb_advert_t *mavlink_log_pub, const char *fmt, ...)
@@ -65,6 +67,8 @@ __EXPORT void mavlink_vasprintf(int severity, orb_advert_t *mavlink_log_pub, con
 
 	log_msg.severity = severity;
 
+	log_msg.timestamp = hrt_absolute_time();
+
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -77,7 +81,9 @@ __EXPORT void mavlink_vasprintf(int severity, orb_advert_t *mavlink_log_pub, con
 		orb_publish(ORB_ID(mavlink_log), *mavlink_log_pub, &log_msg);
 
 	} else {
-		*mavlink_log_pub = orb_advertise(ORB_ID(mavlink_log), &log_msg);
+		*mavlink_log_pub = orb_advertise_queue(ORB_ID(mavlink_log),
+						       &log_msg,
+						       MAVLINK_LOG_QUEUE_SIZE);
 	}
 }
 

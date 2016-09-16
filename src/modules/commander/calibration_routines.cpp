@@ -273,18 +273,7 @@ enum detect_orientation_return detect_orientation(orb_advert_t *mavlink_log_pub,
 
 			for (unsigned i = 0; i < ndim; i++) {
 
-				float di = 0.0f;
-				switch (i) {
-					case 0:
-						di = sensor.accelerometer_m_s2[0];
-						break;
-					case 1:
-						di = sensor.accelerometer_m_s2[1];
-						break;
-					case 2:
-						di = sensor.accelerometer_m_s2[2];
-						break;
-				}
+				float di = sensor.accelerometer_m_s2[i];
 
 				float d = di - accel_ema[i];
 				accel_ema[i] += d * w;
@@ -447,13 +436,13 @@ calibrate_return calibrate_from_orientation(orb_advert_t *mavlink_log_pub,
 		}
 
 		/* inform user which orientations are still needed */
-		char pendingStr[256];
+		char pendingStr[80];
 		pendingStr[0] = 0;
 
 		for (unsigned int cur_orientation=0; cur_orientation<detect_orientation_side_count; cur_orientation++) {
 			if (!side_data_collected[cur_orientation]) {
-				strcat(pendingStr, " ");
-				strcat(pendingStr, detect_orientation_str((enum detect_orientation_return)cur_orientation));
+				strncat(pendingStr, " ", sizeof(pendingStr) - 1);
+				strncat(pendingStr, detect_orientation_str((enum detect_orientation_return)cur_orientation), sizeof(pendingStr) - 1);
 			}
 		}
 		calibration_log_info(mavlink_log_pub, "[cal] pending:%s", pendingStr);

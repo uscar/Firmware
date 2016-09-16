@@ -39,9 +39,8 @@
 #include <systemlib/param/param.h>
 
 /**
- * Enable UAVCAN.
+ * UAVCAN mode
  *
- * Allowed values:
  *  0 - UAVCAN disabled.
  *  1 - Enabled support for UAVCAN actuators and sensors.
  *  2 - Enabled support for dynamic node ID allocation and firmware update.
@@ -77,3 +76,12 @@ PARAM_DEFINE_INT32(UAVCAN_NODE_ID, 1);
  * @group UAVCAN
  */
 PARAM_DEFINE_INT32(UAVCAN_BITRATE, 1000000);
+
+/**
+ * UAVCAN ESC will spin at idle throttle when armed, even if the mixer outputs zero setpoints.
+ *
+ * @min 0
+ * @max 1
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_ESC_IDLT, 0);

@@ -45,7 +45,6 @@
 #include <semaphore.h>
 #include <time.h>
 #include <string.h>
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <errno.h>
 #include "hrt_work.h"
@@ -128,6 +127,12 @@ int px4_clock_settime(clockid_t clk_id, struct timespec *tp)
 
 #include "dspal_time.h"
 
+int px4_clock_settime(clockid_t clk_id, struct timespec *tp)
+{
+	/* do nothing right now */
+	return 0;
+}
+
 int px4_clock_gettime(clockid_t clk_id, struct timespec *tp)
 {
 	return clock_gettime(clk_id, tp);
@@ -160,7 +165,7 @@ hrt_abstime _hrt_absolute_time_internal(void)
 	px4_clock_gettime(CLOCK_MONOTONIC, &ts);
 	return ts_to_abstime(&ts) + dsp_offset;
 
-#elif defined(__PX4_POSIX_EAGLE)
+#elif (defined(__PX4_POSIX_EAGLE) || defined(__PX4_POSIX_EXCELSIOR))
 	// Don't do any offseting on the Linux side on the Snapdragon.
 	px4_clock_gettime(CLOCK_MONOTONIC, &ts);
 	return ts_to_abstime(&ts);

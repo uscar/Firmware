@@ -1,6 +1,6 @@
 include(posix/px4_impl_posix)
 
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/toolchains/Toolchain-native.cmake)
+set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/toolchains/Toolchain-native.cmake)
 
 set(config_module_list
 	drivers/device
@@ -17,7 +17,8 @@ set(config_module_list
 	modules/ekf2
 	modules/ekf2_replay
 	modules/sdlog2
-	modules/controllib
+	modules/logger
+	lib/controllib
 	lib/mathlib
 	lib/mathlib/math/filter
 	lib/conversion
@@ -25,6 +26,7 @@ set(config_module_list
 	lib/external_lgpl
 	lib/geo
 	lib/geo_lookup
+	lib/DriverFramework/framework
 	)
 
 set(config_extra_builtin_cmds
@@ -32,9 +34,9 @@ set(config_extra_builtin_cmds
 	sercon
 	)
 
-set(config_sitl_rcS
-	posix-configs/SITL/init/rcS
-	CACHE FILEPATH "init script for sitl"
+set(config_sitl_rcS_dir
+	posix-configs/SITL/init/replay
+	CACHE INTERNAL "init script dir for sitl"
 	)
 
 set(config_sitl_viewer
@@ -50,13 +52,3 @@ set(config_sitl_debugger
 	)
 set_property(CACHE config_sitl_debugger
 	PROPERTY STRINGS "disable;gdb;lldb")
-
-
-
-add_custom_target(sercon)
-set_target_properties(sercon PROPERTIES
-	MAIN "sercon" STACK "2048")
-
-add_custom_target(serdis)
-set_target_properties(serdis PROPERTIES
-	MAIN "serdis" STACK "2048")

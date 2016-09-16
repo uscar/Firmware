@@ -33,12 +33,15 @@
 px4_add_module(
 	MODULE drivers__camera_trigger
 	MAIN camera_trigger
-	STACK 1200
+	STACK_MAIN 1200
 	COMPILE_FLAGS
 		-Os
 	SRCS
 		camera_trigger.cpp
 		camera_trigger_params.c
+                interfaces/src/camera_interface.cpp
+                interfaces/src/pwm.cpp
+                interfaces/src/relay.cpp
 	DEPENDS
 		platforms__common
 	)

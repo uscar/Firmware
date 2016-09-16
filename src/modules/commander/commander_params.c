@@ -93,23 +93,13 @@ PARAM_DEFINE_FLOAT(TRIM_PITCH, 0.0f);
 PARAM_DEFINE_FLOAT(TRIM_YAW, 0.0f);
 
 /**
- * Datalink loss mode enabled.
- *
- * Set to 1 to enable actions triggered when the datalink is lost.
- *
- * @group Commander
- * @boolean
- */
-PARAM_DEFINE_INT32(COM_DL_LOSS_EN, 0);
-
-/**
  * Datalink loss time threshold
  *
  * After this amount of seconds without datalink the data link lost mode triggers
  *
  * @group Commander
  * @unit s
- * @min 0
+ * @min 5
  * @max 300
  * @decimal 1
  * @increment 0.5
@@ -125,7 +115,7 @@ PARAM_DEFINE_INT32(COM_DL_LOSS_T, 10);
  * @group Commander
  * @unit s
  * @min 0
- * @max 30
+ * @max 3
  * @decimal 1
  * @increment 0.5
  */
@@ -137,10 +127,11 @@ PARAM_DEFINE_INT32(COM_DL_REG_T, 0);
  * Engine failure triggers only above this throttle value
  *
  * @group Commander
+ * @unit norm
  * @min 0.0
  * @max 1.0
- * @decimal 1
- * @increment 0.05
+ * @decimal 2
+ * @increment 0.01
  */
 PARAM_DEFINE_FLOAT(COM_EF_THROT, 0.5f);
 
@@ -152,7 +143,7 @@ PARAM_DEFINE_FLOAT(COM_EF_THROT, 0.5f);
  * @group Commander
  * @min 0.0
  * @max 50.0
- * @unit A
+ * @unit A/%
  * @decimal 2
  * @increment 1
  */
@@ -245,6 +236,17 @@ PARAM_DEFINE_INT32(COM_AUTOS_PAR, 1);
 PARAM_DEFINE_INT32(COM_RC_IN_MODE, 0);
 
 /**
+ * RC input arm/disarm command duration
+ *
+ * The default value of 1000 requires the stick to be held in the arm or disarm position for 1 second.
+ *
+ * @group Commander
+ * @min 100
+ * @max 1500
+ */
+PARAM_DEFINE_INT32(COM_RC_ARM_HYST, 1000);
+
+/**
  * Time-out for auto disarm after landing
  *
  * A non-zero, positive value specifies the time-out period in seconds after which the vehicle will be
@@ -259,6 +261,75 @@ PARAM_DEFINE_INT32(COM_RC_IN_MODE, 0);
  * @increment 1
  */
 PARAM_DEFINE_INT32(COM_DISARM_LAND, 0);
+
+/**
+ * Allow arming without GPS
+ *
+ * The default allows to arm the vehicle without GPS signal.
+ *
+ * @group Commander
+ * @min 0
+ * @max 1
+ * @value 0 Don't allow arming without GPS
+ * @value 1 Allow arming without GPS
+ */
+PARAM_DEFINE_INT32(COM_ARM_WO_GPS, 1);
+
+/**
+ * Battery failsafe mode
+ *
+ * Action the system takes on low battery. Defaults to off
+ *
+ * @group Commander
+ * @value 0 Warning
+ * @value 1 Return to Land
+ * @value 2 Land at current position
+ * @decimal 0
+ * @increment 1
+ */
+PARAM_DEFINE_INT32(COM_LOW_BAT_ACT, 0);
+
+/**
+ * Time-out to wait when offboard connection is lost before triggering offboard lost action.
+ * See COM_OBL_ACT and COM_OBL_RC_ACT to configure action.
+ *
+ * @group Commander
+ * @unit second
+ * @min 0
+ * @max 60
+ * @increment 1
+ */
+PARAM_DEFINE_FLOAT(COM_OF_LOSS_T, 0.0f);
+
+/**
+ * Set offboard loss failsafe mode
+ *
+ * The offboard loss failsafe will only be entered after a timeout,
+ * set by COM_OF_LOSS_T in seconds.
+ *
+ * @value 0 Land at current position
+ * @value 1 Loiter
+ * @value 2 Return to Land
+ *
+ * @group Mission
+ */
+PARAM_DEFINE_INT32(COM_OBL_ACT, 0);
+
+/**
+ * Set offboard loss failsafe mode when RC is available
+ *
+ * The offboard loss failsafe will only be entered after a timeout,
+ * set by COM_OF_LOSS_T in seconds.
+ *
+ * @value 0 Position control
+ * @value 1 Altitude control
+ * @value 2 Manual
+ * @value 3 Return to Land
+ * @value 4 Land at current position
+ *
+ * @group Mission
+ */
+PARAM_DEFINE_INT32(COM_OBL_RC_ACT, 0);
 
 /**
  * First flightmode slot (1000-1160)
@@ -279,6 +350,7 @@ PARAM_DEFINE_INT32(COM_DISARM_LAND, 0);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE1, -1);
 
@@ -301,6 +373,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE1, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE2, -1);
 
@@ -323,6 +396,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE2, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE3, -1);
 
@@ -345,11 +419,12 @@ PARAM_DEFINE_INT32(COM_FLTMODE3, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE4, -1);
 
 /**
- * Fift flightmode slot (1640-1800)
+ * Fifth flightmode slot (1640-1800)
  *
  * If the main switch channel is in this range the
  * selected flight mode will be applied.
@@ -367,6 +442,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE4, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE5, -1);
 
@@ -389,5 +465,6 @@ PARAM_DEFINE_INT32(COM_FLTMODE5, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 9 Rattitude
+ * @value 12 Follow Me
  */
 PARAM_DEFINE_INT32(COM_FLTMODE6, -1);

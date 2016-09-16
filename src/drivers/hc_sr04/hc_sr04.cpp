@@ -297,9 +297,9 @@ HC_SR04::init()
 
 	/* init echo port : */
 	for (unsigned i = 0; i <= _sonars; i++) {
-		stm32_configgpio(_gpio_tab[i].trig_port);
-		stm32_gpiowrite(_gpio_tab[i].trig_port, false);
-		stm32_configgpio(_gpio_tab[i].echo_port);
+		px4_arch_configgpio(_gpio_tab[i].trig_port);
+		px4_arch_gpiowrite(_gpio_tab[i].trig_port, false);
+		px4_arch_configgpio(_gpio_tab[i].echo_port);
 		_latest_sonar_measurements.push_back(0);
 	}
 
@@ -441,14 +441,14 @@ HC_SR04::ioctl(struct file *filp, int cmd, unsigned long arg)
 				return -EINVAL;
 			}
 
-			irqstate_t flags = irqsave();
+			irqstate_t flags = px4_enter_critical_section();
 
 			if (!_reports->resize(arg)) {
-				irqrestore(flags);
+				px4_leave_critical_section(flags);
 				return -ENOMEM;
 			}
 
-			irqrestore(flags);
+			px4_leave_critical_section(flags);
 
 			return OK;
 		}
@@ -546,9 +546,9 @@ HC_SR04::measure()
 	/*
 	 * Send a plus begin a measurement.
 	 */
-	stm32_gpiowrite(_gpio_tab[_cycle_counter].trig_port, true);
+	px4_arch_gpiowrite(_gpio_tab[_cycle_counter].trig_port, true);
 	usleep(10);  // 10us
-	stm32_gpiowrite(_gpio_tab[_cycle_counter].trig_port, false);
+	px4_arch_gpiowrite(_gpio_tab[_cycle_counter].trig_port, false);
 
 	stm32_gpiosetevent(_gpio_tab[_cycle_counter].echo_port, true, true, false, sonar_isr);
 	_status = 0;
@@ -659,12 +659,12 @@ HC_SR04::start()
 
 
 	/* notify about state change */
-	struct subsystem_info_s info = {
-		true,
-		true,
-		true,
-		SUBSYSTEM_TYPE_RANGEFINDER
-	};
+	struct subsystem_info_s info = {};
+	info.present = true;
+	info.enabled = true;
+	info.ok = true;
+	info.subsystem_type = SUBSYSTEM_TYPE_RANGEFINDER;
+
 	static orb_advert_t pub = nullptr;
 
 	if (pub != nullptr) {
