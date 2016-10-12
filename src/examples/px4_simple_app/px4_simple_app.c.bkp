@@ -49,7 +49,6 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
-#include <uORB/topics/vehicle_attitude_setpoint.h>
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
@@ -60,21 +59,16 @@ int px4_simple_app_main(int argc, char *argv[])
 	/* subscribe to sensor_combined topic */
 	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
 	/* limit the update rate to 5 Hz */
-	orb_set_interval(sensor_sub_fd, 10);
+	orb_set_interval(sensor_sub_fd, 200);
 
-    int attitude_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
-
-    orb_set_interval(attitude_sub_fd, 10);
-
-     /* advertise attitude topic */
-    struct vehicle_attitude_setpoint_s att_set;
-    memset(&att_set, 0, sizeof(att_set));
-    orb_advert_t att_set_pub = orb_advertise(ORB_ID(vehicle_attitude_setpoint), &att_set);
+	/* advertise attitude topic */
+	struct vehicle_attitude_s att;
+	memset(&att, 0, sizeof(att));
+	orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
 
 	/* one could wait for multiple topics with this technique, just using one here */
 	px4_pollfd_struct_t fds[] = {
 		{ .fd = sensor_sub_fd,   .events = POLLIN },
-        { .fd = attitude_sub_fd, .events = POLLIN },
 		/* there could be more file descriptors here, in the form like:
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
@@ -82,7 +76,7 @@ int px4_simple_app_main(int argc, char *argv[])
 
 	int error_counter = 0;
 
-	for (int i = 0; i < 600; i++) {
+	for (int i = 0; i < 5; i++) {
 		/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
 		int poll_ret = px4_poll(fds, 1, 1000);
 
@@ -107,30 +101,16 @@ int px4_simple_app_main(int argc, char *argv[])
 				struct sensor_combined_s raw;
 				/* copy sensors raw data into local buffer */
 				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-				//PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-				//	 (double)raw.accelerometer_m_s2[0],
-				//	 (double)raw.accelerometer_m_s2[1],
-				//	 (double)raw.accelerometer_m_s2[2]);
+				PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
+					 (double)raw.accelerometer_m_s2[0],
+					 (double)raw.accelerometer_m_s2[1],
+					 (double)raw.accelerometer_m_s2[2]);
 
-                struct vehicle_attitude_s raw_att;
-                orb_copy(ORB_ID(vehicle_attitude), attitude_sub_fd, &raw_att);
-                PX4_INFO("Pitch:%8.4f\tRoll:%8.4f\tYaw%8.4f\t", (double)raw_att.pitch, (double)raw_att.roll, (double)raw_att.yaw);
-
-                att_set.roll_body = 0.0;
-                att_set.pitch_body = 0.0;
-                att_set.yaw_body = -2.5; //(double) raw_att.yaw;
-                att_set.R_valid = false;
-                att_set.yaw_sp_move_rate = 0.0;
-                att_set.thrust = 1.0;
-                att_set.roll_reset_integral = false;
-                att_set.pitch_reset_integral = false;
-                att_set.yaw_reset_integral = false;
-                att_set.fw_control_yaw = false;
-                att_set.disable_mc_yaw_control = false;
-                att_set.apply_flaps = false;
-                
-    
-                orb_publish(ORB_ID(vehicle_attitude_setpoint), att_set_pub, &att_set);
+				/* set att and publish this information for other apps */
+				att.roll = raw.accelerometer_m_s2[0];
+				att.pitch = raw.accelerometer_m_s2[1];
+				att.yaw = raw.accelerometer_m_s2[2];
+				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
 			}
 
 			/* there could be more file descriptors here, in the form like:
