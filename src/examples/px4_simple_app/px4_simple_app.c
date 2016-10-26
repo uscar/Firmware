@@ -50,6 +50,8 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
+#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/optical_flow.h>
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
@@ -66,6 +68,14 @@ int px4_simple_app_main(int argc, char *argv[])
 
     orb_set_interval(attitude_sub_fd, 10);
 
+    int vehicle_position_fd = orb_subscribe(ORB_ID(vehicle_local_position));
+
+    orb_set_interval(vehicle_position_fd, 10);
+
+    int optical_flow_fd = orb_subscribe(ORB_ID(optical_flow));
+
+    orb_set_interval(optical_flow_fd, 10);
+
      /* advertise attitude topic */
     struct vehicle_attitude_setpoint_s att_set;
     memset(&att_set, 0, sizeof(att_set));
@@ -75,14 +85,16 @@ int px4_simple_app_main(int argc, char *argv[])
 	px4_pollfd_struct_t fds[] = {
 		{ .fd = sensor_sub_fd,   .events = POLLIN },
         { .fd = attitude_sub_fd, .events = POLLIN },
+        { .fd = vehicle_position_fd, .events = POLLIN },
 		/* there could be more file descriptors here, in the form like:
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
 	};
 
 	int error_counter = 0;
+    double thrust = 0.0;
 
-	for (int i = 0; i < 600; i++) {
+	for (int i = 0; i < 6000; i++) {
 		/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
 		int poll_ret = px4_poll(fds, 1, 1000);
 
@@ -114,14 +126,25 @@ int px4_simple_app_main(int argc, char *argv[])
 
                 struct vehicle_attitude_s raw_att;
                 orb_copy(ORB_ID(vehicle_attitude), attitude_sub_fd, &raw_att);
-                PX4_INFO("Pitch:%8.4f\tRoll:%8.4f\tYaw%8.4f\t", (double)raw_att.pitch, (double)raw_att.roll, (double)raw_att.yaw);
+                //PX4_INFO("Pitch:%8.4f\tRoll:%8.4f\tYaw%8.4f\t", (double)raw_att.pitch, (double)raw_att.roll, (double)raw_att.yaw);
 
+                struct vehicle_local_position_s veh_l;
+                orb_copy(ORB_ID(vehicle_local_position), vehicle_position_fd, &veh_l);
+                PX4_INFO("X:%8.4f\tY:%8.4f\tZ:%8.4f", (double)veh_l.x, (double)veh_l.y, (double)veh_l.z);
+                PX4_INFO("Xv:%8.4f\tYv:%8.4f\tZv:%8.4f", (double)veh_l.vx, (double)veh_l.vy, (double)veh_l.vz);
+                PX4_INFO("XYValid:%d\tZValid:%d", (int)veh_l.xy_valid, (int)veh_l.z_valid);
+
+                struct optical_flow_s flow;
+                orb_copy(ORB_ID(optical_flow), optical_flow_fd, &flow);
+                PX4_INFO("FlowX:%8.4f\tFlowZ:%8.4f\tFlowQuality:%8.4f", (double)flow.pixel_flow_x_integral, (double)flow.ground_distance_m, (double)flow.quality);
+
+                thrust += 2.0 / 6000;
                 att_set.roll_body = 0.0;
                 att_set.pitch_body = 0.0;
                 att_set.yaw_body = -2.5; //(double) raw_att.yaw;
                 att_set.R_valid = false;
                 att_set.yaw_sp_move_rate = 0.0;
-                att_set.thrust = 1.0;
+                att_set.thrust = thrust;
                 att_set.roll_reset_integral = false;
                 att_set.pitch_reset_integral = false;
                 att_set.yaw_reset_integral = false;
