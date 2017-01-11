@@ -62,19 +62,19 @@ int px4_simple_app_main(int argc, char *argv[])
 	/* subscribe to sensor_combined topic */
 	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
 	/* limit the update rate to 5 Hz */
-	orb_set_interval(sensor_sub_fd, 10);
+	orb_set_interval(sensor_sub_fd, 25);
 
     int attitude_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
 
-    orb_set_interval(attitude_sub_fd, 10);
+    orb_set_interval(attitude_sub_fd, 25);
 
     int vehicle_position_fd = orb_subscribe(ORB_ID(vehicle_local_position));
 
-    orb_set_interval(vehicle_position_fd, 10);
+    orb_set_interval(vehicle_position_fd, 25);
 
     int optical_flow_fd = orb_subscribe(ORB_ID(optical_flow));
 
-    orb_set_interval(optical_flow_fd, 10);
+    orb_set_interval(optical_flow_fd, 25);
 
      /* advertise attitude topic */
     struct vehicle_attitude_setpoint_s att_set;
@@ -154,6 +154,7 @@ int px4_simple_app_main(int argc, char *argv[])
                 
     
                 orb_publish(ORB_ID(vehicle_attitude_setpoint), att_set_pub, &att_set);
+
 			}
 
 			/* there could be more file descriptors here, in the form like:
