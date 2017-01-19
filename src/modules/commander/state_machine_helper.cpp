@@ -1110,10 +1110,10 @@ int preflight_check(struct vehicle_status_s *status, orb_advert_t *mavlink_log_p
 	}
 
 	if (battery->warning == battery_status_s::BATTERY_WARNING_CRITICAL) {
-		preflight_ok = false;
+		preflight_ok = true;
 
 		if (reportFailures) {
-			mavlink_and_console_log_critical(mavlink_log_pub, "ARMING DENIED: VERY LOW BATTERY");
+			mavlink_and_console_log_critical(mavlink_log_pub, "ARMING NOT RECOMMENDED: VERY LOW BATTERY");
 		}
 	}
 

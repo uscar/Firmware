@@ -46,6 +46,9 @@
 #include <poll.h>
 #include <string.h>
 
+#include "systemlib/param/param.h"
+#include "drivers/drv_pwm_output.h"
+
 #include <uORB/uORB.h>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
@@ -73,6 +76,7 @@ int px4_simple_app_main(int argc, char *argv[])
 
   uORB::Publication<actuator_armed_s> actuator_armed_pub(
       ORB_ID(actuator_armed), -1);
+  actuator_armed_pub.get().ready_to_arm = true;
   actuator_armed_pub.get().armed = true;
   actuator_armed_pub.update();
 
