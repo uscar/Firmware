@@ -40,6 +40,7 @@
  * @author Beat Kueng
 */
 
+#include <drivers/drv_hrt.h>
 #include <px4_defines.h>
 #include <px4_posix.h>
 #include <px4_tasks.h>
@@ -56,7 +57,6 @@
 #include <stdlib.h>
 #include <string>
 
-#include <logger/logger.h>
 #include <logger/messages.h>
 
 #include "replay.hpp"
@@ -805,7 +805,7 @@ int Replay::start(bool quiet, bool apply_params_only)
 			ret = -1;
 		}
 
-		delete(r);
+		delete (r);
 
 	} else {
 

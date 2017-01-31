@@ -5,21 +5,21 @@ machine:
 checkout:
   post:
     # workaround for known git bug where attempting to fetch a missing commit fails early on the first try
-    - git submodule update --init || true
+    - git submodule update --init --recursive || true
     - git submodule sync --recursive
-    - git submodule update --init --recursive
+    - git submodule deinit -f .
+    - git submodule update --init --recursive --force
 
 dependencies:
   pre:
-    - docker pull px4io/px4-dev-nuttx-gcc4.9
+    - sudo pip install cpp-coveralls
+    - sudo apt-get install -y lcov
 
 test:
   override:
-    - docker run --rm -v `pwd`:`pwd`:rw -e CI=true -w=`pwd` --user=$UID -it px4io/px4-dev-nuttx-gcc4.9 /bin/bash -c "make quick_check"
-
-general:
-  artifacts:
-    - "build_px4fmu-v2_default/parameters.xml"
-    - "build_px4fmu-v2_default/airframes.xml"
-    - "build_.*/src/firmware/nuttx/.*.px4"
-
+    - ./Tools/docker_run.sh 'make tests_coverage'
+    # copy test results for circleci
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/ && cp ./build_posix_sitl_default/JUnitTestResults.xml build_unittest/test_detail.xml $CIRCLE_TEST_REPORTS/junit/
+    - mkdir -p $CIRCLE_ARTIFACTS && cp -R coverage-html $CIRCLE_ARTIFACTS
+    # only post to coveralls if not a fork PR
+    - if [ -z ${CIRCLE_PR_USERNAME}]; then cpp-coveralls -l coverage.info; fi

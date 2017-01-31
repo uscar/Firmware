@@ -83,12 +83,6 @@ enum MS5611_BUS {
 	MS5611_BUS_SPI_EXTERNAL
 };
 
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-static const int ERROR = -1;
-
 #ifndef CONFIG_SCHED_WORKQUEUE
 # error This requires CONFIG_SCHED_WORKQUEUE.
 #endif
@@ -244,6 +238,24 @@ MS5611::MS5611(device::Device *interface, ms5611::prom_u &prom_buf, const char *
 {
 	// work_cancel in stop_cycle called from the dtor will explode if we don't do this...
 	memset(&_work, 0, sizeof(_work));
+
+	// set the device type from the interface
+	_device_id.devid_s.bus_type = _interface->get_device_bus_type();
+	_device_id.devid_s.bus = _interface->get_device_bus();
+	_device_id.devid_s.address = _interface->get_device_address();
+
+	switch (_device_type) {
+	default:
+
+	/* fall through */
+	case MS5611_DEVICE:
+		_device_id.devid_s.devtype = DRV_BARO_DEVTYPE_MS5611;
+		break;
+
+	case MS5607_DEVICE:
+		_device_id.devid_s.devtype = DRV_BARO_DEVTYPE_MS5607;
+		break;
+	}
 }
 
 MS5611::~MS5611()
@@ -768,6 +780,9 @@ MS5611::collect()
 		report.temperature = _TEMP / 100.0f;
 		report.pressure = P / 100.0f;		/* convert to millibar */
 
+		/* return device ID */
+		report.device_id = _device_id.devid;
+
 		/* altitude calculations based on http://www.kansasflyer.org/index.asp?nav=Avi&sec=Alti&tab=Theory&pg=1 */
 
 		/*
@@ -806,7 +821,7 @@ MS5611::collect()
 		report.altitude = (((pow((p / p1), (-(a * R) / g))) * T1) - T1) / a;
 
 		/* publish it */
-		if (!(_pub_blocked)) {
+		if (!(_pub_blocked) && _baro_topic != nullptr) {
 			/* publish it */
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &report);
 		}
@@ -1010,7 +1025,7 @@ start(enum MS5611_BUS busid, enum MS56XX_DEVICE_TYPES device_type)
 	}
 
 	if (!started) {
-		errx(1, "driver start failed");
+		exit(1);
 	}
 
 	// one or more drivers started OK

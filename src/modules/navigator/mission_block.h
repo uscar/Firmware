@@ -107,7 +107,7 @@ protected:
 	/**
 	 * Set a takeoff mission item
 	 */
-	void set_takeoff_item(struct mission_item_s *item, float min_clearance = -1.0f, float min_pitch = 0.0f);
+	void set_takeoff_item(struct mission_item_s *item, float abs_altitude, float min_pitch = 0.0f);
 
 	/**
 	 * Set a land mission item
@@ -129,7 +129,7 @@ protected:
 	/**
 	 * Set follow_target item
 	 */
-	void set_follow_target_item(struct mission_item_s *item, float min_clearance, follow_target_s & target, float yaw);
+	void set_follow_target_item(struct mission_item_s *item, float min_clearance, follow_target_s &target, float yaw);
 
 	void issue_command(const struct mission_item_s *item);
 
@@ -148,7 +148,10 @@ protected:
 	control::BlockParamFloat _param_yaw_timeout;
 	control::BlockParamFloat _param_yaw_err;
 	control::BlockParamInt _param_vtol_wv_land;
+	control::BlockParamInt _param_vtol_wv_takeoff;
 	control::BlockParamInt _param_vtol_wv_loiter;
+	control::BlockParamInt _param_force_vtol;
+	control::BlockParamFloat _param_back_trans_dur;
 };
 
 #endif

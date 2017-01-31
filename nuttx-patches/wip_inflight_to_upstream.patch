@@ -1,0 +1,173 @@
+diff --git NuttX/nuttx/drivers/usbdev/cdcacm.c NuttX/nuttx/drivers/usbdev/cdcacm.c
+index 64e2e68..15f92dd 100644
+--- NuttX/nuttx/drivers/usbdev/cdcacm.c
++++ NuttX/nuttx/drivers/usbdev/cdcacm.c
+@@ -243,6 +243,12 @@ static const struct uart_ops_s g_uartops =
+ #ifdef CONFIG_SERIAL_IFLOWCONTROL
+   cdcuart_rxflowcontrol, /* rxflowcontrol */
+ #endif
++#ifdef CONFIG_SERIAL_DMA
++  NULL,                  /* dmasend */
++  NULL,                  /* dmareceive */
++  NULL,                  /* dmarxfree */
++  NULL,                  /* dmatxavail */
++#endif
+   NULL,                  /* send */
+   cdcuart_txint,         /* txinit */
+   NULL,                  /* txready */
+diff --git NuttX/nuttx/arch/arm/src/stm32/stm32_serial.c NuttX/nuttx/arch/arm/src/stm32/stm32_serial.c
+index 644c810..10919e8 100644
+--- NuttX/nuttx/arch/arm/src/stm32/stm32_serial.c
++++ NuttX/nuttx/arch/arm/src/stm32/stm32_serial.c
+@@ -1945,11 +1945,11 @@ static int up_interrupt_common(struct up_dev_s *priv)
+ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
+ {
+ #if defined(CONFIG_SERIAL_TERMIOS) || defined(CONFIG_SERIAL_TIOCSERGSTRUCT) \
+-    || defined(CONFIG_STM32F7_SERIALBRK_BSDCOMPAT)
++    || defined(CONFIG_STM32_SERIALBRK_BSDCOMPAT)
+   struct inode      *inode = filep->f_inode;
+   struct uart_dev_s *dev   = inode->i_private;
+ #endif
+-#if defined(CONFIG_SERIAL_TERMIOS) || defined(CONFIG_STM32F7_SERIALBRK_BSDCOMPAT)
++#if defined(CONFIG_SERIAL_TERMIOS) || defined(CONFIG_STM32_SERIALBRK_BSDCOMPAT)
+   struct up_dev_s   *priv  = (struct up_dev_s *)dev->priv;
+ #endif
+   int                ret    = OK;
+diff --git NuttX/nuttx/arch/arm/src/stm32/stm32f40xxx_rcc.c NuttX/nuttx/arch/arm/src/stm32/stm32f40xxx_rcc.c
+index 5e2ba73..adda863 100644
+--- NuttX/nuttx/arch/arm/src/stm32/stm32f40xxx_rcc.c
++++ NuttX/nuttx/arch/arm/src/stm32/stm32f40xxx_rcc.c
+@@ -95,10 +95,10 @@ static inline void rcc_reset(void)
+ 
+   putreg32(0x00000000, STM32_RCC_CFGR);
+ 
+-  /* Reset HSION, HSEON, CSSON and PLLON bits */
++  /* Reset HSEON, CSSON and PLLON bits */
+ 
+   regval  = getreg32(STM32_RCC_CR);
+-  regval &= ~(RCC_CR_HSION | RCC_CR_HSEON | RCC_CR_CSSON | RCC_CR_PLLON);
++  regval &= ~(RCC_CR_HSEON | RCC_CR_CSSON | RCC_CR_PLLON);
+   putreg32(regval, STM32_RCC_CR);
+ 
+   /* Reset PLLCFGR register to reset default */
+@@ -619,11 +619,6 @@ static void stm32_stdclockconfig(void)
+   volatile int32_t timeout;
+ 
+ #ifdef STM32_BOARD_USEHSI
+-  /* Enable Internal High-Speed Clock (HSI) */
+-
+-  regval  = getreg32(STM32_RCC_CR);
+-  regval |= RCC_CR_HSION;           /* Enable HSI */
+-  putreg32(regval, STM32_RCC_CR);
+ 
+   /* Wait until the HSI is ready (or until a timeout elapsed) */
+ 
+diff --git NuttX/nuttx/arch/arm/src/stm32/stm32_flash.c NuttX/nuttx/arch/arm/src/stm32/stm32_flash.c
+index 73f1419..9ac38a1 100644
+--- NuttX/nuttx/arch/arm/src/stm32/stm32_flash.c
++++ NuttX/nuttx/arch/arm/src/stm32/stm32_flash.c
+@@ -231,12 +231,14 @@ ssize_t up_progmem_erasepage(size_t page)
+       return -EFAULT;
+     }
+ 
+-  /* Get flash ready and begin erasing single page */
+-
++#if !defined(CONFIG_STM32_STM32F40XX)
+   if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
+     {
+       return -EPERM;
+     }
++#endif
++
++  /* Get flash ready and begin erasing single page */
+ 
+   stm32_flash_unlock();
+ 
+@@ -318,12 +320,14 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
+       return -EFAULT;
+     }
+ 
+-  /* Get flash ready and begin flashing */
+-
++#if !defined(CONFIG_STM32_STM32F40XX)
+   if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
+     {
+       return -EPERM;
+     }
++#endif
++
++  /* Get flash ready and begin flashing */
+ 
+   stm32_flash_unlock();
+ 
+diff --git NuttX/nuttx/drivers/mtd/ramtron.c NuttX/nuttx/drivers/mtd/ramtron.c
+index ad448c8..236084f 100644
+--- NuttX/nuttx/drivers/mtd/ramtron.c
++++ NuttX/nuttx/drivers/mtd/ramtron.c
+@@ -539,7 +539,7 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_
+ 
+   finfo("page: %08lx offset: %08lx\n", (long)page, (long)offset);
+ 
+-#ifndef RAMTRON_WRITEWAIT
++#ifndef CONFIG_RAMTRON_WRITEWAIT
+   /* Wait for any preceding write to complete.  We could simplify things by
+    * perform this wait at the end of each write operation (rather than at
+    * the beginning of ALL operations), but have the wait first will slightly
+@@ -574,7 +574,7 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_
+   SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
+   finfo("Written\n");
+ 
+-#ifdef RAMTRON_WRITEWAIT
++#ifdef CONFIG_RAMTRON_WRITEWAIT
+   /* Wait for write completion now so we can report any errors to the caller. Thus
+    * the caller will know whether or not if the data is on stable storage
+    */
+@@ -657,13 +657,13 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
+                             FAR uint8_t *buffer)
+ {
+   FAR struct ramtron_dev_s *priv = (FAR struct ramtron_dev_s *)dev;
+-#ifdef RAMTRON_WRITEWAIT
++#ifdef CONFIG_RAMTRON_WRITEWAIT
+   uint8_t status;
+ #endif
+ 
+   finfo("offset: %08lx nbytes: %d\n", (long)offset, (int)nbytes);
+ 
+-#ifndef RAMTRON_WRITEWAIT
++#ifndef CONFIG_RAMTRON_WRITEWAIT
+   /* Wait for any preceding write to complete.  We could simplify things by
+    * perform this wait at the end of each write operation (rather than at
+    * the beginning of ALL operations), but have the wait first will slightly
+@@ -690,7 +690,7 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
+ 
+   SPI_RECVBLOCK(priv->dev, buffer, nbytes);
+ 
+-#ifdef RAMTRON_WRITEWAIT
++#ifdef CONFIG_RAMTRON_WRITEWAIT
+   /* Read the status register. This isn't strictly needed, but it gives us a
+    * chance to detect if SPI transactions are operating correctly, which
+    * allows us to catch complete device failures in the read path. We expect
+diff --git NuttX/nuttx/arch/arm/src/stm32/chip/stm32f30xxx_memorymap.h NuttX/nuttx/arch/arm/src/stm32/chip/stm32f30xxx_memorymap.h
+index 51cca40..a7cbc46 100644
+--- NuttX/nuttx/arch/arm/src/stm32/chip/stm32f30xxx_memorymap.h
++++ NuttX/nuttx/arch/arm/src/stm32/chip/stm32f30xxx_memorymap.h
+@@ -93,6 +93,7 @@
+ #define STM32_TIM6_BASE      0x40001000     /* 0x40001000-0x400013ff TIM6 */
+ #define STM32_TIM7_BASE      0x40001400     /* 0x40001400-0x400017ff TIM7 */
+ #define STM32_RTC_BASE       0x40002800     /* 0x40002800-0x40002bff RTC */
++#define STM32_BKP_BASE       0x40002850     /* 0x40002850-0x4000288c BKP */
+ #define STM32_WWDG_BASE      0x40002c00     /* 0x40002c00-0x40002fff WWDG */
+ #define STM32_IWDG_BASE      0x40003000     /* 0x40003000-0x400033ff IWDG */
+ #define STM32_I2S2EXT_BASE   0x40003400     /* 0x40003400-0x400037ff I2S2ext */
+diff --git NuttX/nuttx/arch/arm/src/stm32/chip/stm32f37xxx_memorymap.h NuttX/nuttx/arch/arm/src/stm32/chip/stm32f37xxx_memorymap.h
+index 4c703be..49bfa2e 100644
+--- NuttX/nuttx/arch/arm/src/stm32/chip/stm32f37xxx_memorymap.h
++++ NuttX/nuttx/arch/arm/src/stm32/chip/stm32f37xxx_memorymap.h
+@@ -94,6 +94,7 @@
+ #define STM32_TIM13_BASE     0x40001c00     /* 0x40001c00-0x40001fff TIM13 */
+ #define STM32_TIM14_BASE     0x40002000     /* 0x40002000-0x400023ff TIM14 */
+ #define STM32_RTC_BASE       0x40002800     /* 0x40002800-0x40002bff RTC */
++#define STM32_BKP_BASE       0x40002850     /* 0x40002850-0x400028cc BKP */
+ #define STM32_WWDG_BASE      0x40002c00     /* 0x40002c00-0x40002fff WWDG */
+ #define STM32_IWDG_BASE      0x40003000     /* 0x40003000-0x400033ff IWDG */
+ #define STM32_SPI2_BASE      0x40003800     /* 0x40003800-0x40003bff SPI2, or */

@@ -3,6 +3,7 @@ param load
 param set MAV_TYPE 13
 param set SYS_AUTOSTART 6001
 param set SYS_RESTART_TYPE 2
+param set SYS_MC_EST_GROUP 1
 dataman start
 param set BAT_N_CELLS 3
 param set CAL_GYRO0_ID 2293768
@@ -61,6 +62,7 @@ local_position_estimator start
 mc_pos_control start
 mc_att_control start
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/hexa_x.main.mix
+mixer append /dev/pwm_output0 ROMFS/px4fmu_common/mixers/mount_legs.aux.mix
 mavlink start -u 14556 -r 4000000
 mavlink start -u 14557 -r 4000000 -m onboard -o 14540
 mavlink stream -r 50 -s POSITION_TARGET_LOCAL_NED -u 14556
@@ -73,6 +75,7 @@ mavlink stream -r 50 -s SERVO_OUTPUT_RAW_0 -u 14556
 mavlink stream -r 20 -s RC_CHANNELS -u 14556
 mavlink stream -r 250 -s HIGHRES_IMU -u 14556
 mavlink stream -r 10 -s OPTICAL_FLOW_RAD -u 14556
-sdlog2 start -r 100 -e -t -a
+logger start -e -t
+vmount start
 mavlink boot_complete
 replay trystart

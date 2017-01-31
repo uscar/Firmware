@@ -35,7 +35,7 @@
 #ifndef UNIT_TEST_H_
 #define UNIT_TEST_H_
 
-#include <systemlib/err.h>
+#include <px4_log.h>
 
 #define ut_declare_test_c(test_function, test_class)	\
 	extern "C" {										\
@@ -70,6 +70,7 @@ public:
 		test_class* test = new test_class();	\
 		bool success = test->run_tests();	\
 		test->print_results();			\
+		delete test;				\
 		return success;				\
 	}
 
@@ -136,6 +137,35 @@ protected:
 		int _v2 = v2;									\
 		if (_v1 != _v2) {								\
 			_print_compare(message, #v1, _v1, #v2, _v2, __FILE__, __LINE__);	\
+			return false;								\
+		} else {									\
+			_assertions++;								\
+		}										\
+	} while (0)
+
+/// @brief Used to compare two float values within a unit test. If possible use ut_compare_float instead of ut_assert
+/// since it will give you better error reporting of the actual values being compared.
+#define ut_compare_float(message, v1, v2, precision)						\
+	do {											\
+		int _p = pow(10, precision);							\
+		int _v1 = (int)(v1 * _p + 0.5f);						\
+		int _v2 = (int)(v2 * _p + 0.5f);						\
+		if (_v1 != _v2) {								\
+			_print_compare(message, #v1, _v1, #v2, _v2, __FILE__, __LINE__);	\
+			return false;								\
+		} else {									\
+			_assertions++;								\
+		}										\
+	} while (0)
+
+/// @brief Used to compare two integer values within a unit test. If possible use ut_less_than instead of ut_assert
+/// since it will give you better error reporting of the actual values being compared.
+#define ut_less_than(message, v1_smaller, v2_bigger)								\
+	do {											\
+		int _v1 = v1_smaller;							\
+		int _v2 = v2_bigger;							\
+		if (!(_v1 < _v2)) {								\
+			_print_compare(message, #v1_smaller, _v1, #v2_bigger, _v2, __FILE__, __LINE__);	\
 			return false;								\
 		} else {									\
 			_assertions++;								\

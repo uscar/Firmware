@@ -95,16 +95,15 @@ PARAM_DEFINE_INT32(SYS_RESTART_TYPE, 2);
  *
  * Set the group of estimators used for multicopters and vtols
  *
- * @value 0 position_estimator_inav, attitude_estimator_q
  * @value 1 local_position_estimator, attitude_estimator_q
  * @value 2 ekf2
  *
- * @min 0
+ * @min 1
  * @max 2
  * @reboot_required true
  * @group System
  */
-PARAM_DEFINE_INT32(SYS_MC_EST_GROUP, 1);
+PARAM_DEFINE_INT32(SYS_MC_EST_GROUP, 2);
 
 /**
  * TELEM2 as companion computer link
@@ -114,11 +113,15 @@ PARAM_DEFINE_INT32(SYS_MC_EST_GROUP, 1);
  *
  * @value 0 Disabled
  * @value 10 FrSky Telemetry
+ * @value 20 Crazyflie (Syslink)
  * @value 921600 Companion Link (921600 baud, 8N1)
  * @value 57600 Companion Link (57600 baud, 8N1)
  * @value 157600 OSD (57600 baud, 8N1)
  * @value 257600 Command Receiver (57600 baud, 8N1)
+ * @value 319200 Normal Telemetry (19200 baud, 8N1)
+ * @value 338400 Normal Telemetry (38400 baud, 8N1)
  * @value 357600 Normal Telemetry (57600 baud, 8N1)
+ * @value 419200 Iridium Telemetry (19200 baud, 8N1)
  * @value 1921600 ESP8266 (921600 baud, 8N1)
  *
  * @min 0
@@ -151,3 +154,11 @@ PARAM_DEFINE_INT32(SYS_PARAM_VER, 1);
  * @group System
  */
 PARAM_DEFINE_INT32(SYS_LOGGER, 0);
+
+/**
+ * Enable stack checking
+ *
+ * @min 0
+ * @group System
+ */
+PARAM_DEFINE_INT32(SYS_STCK_EN, 0);

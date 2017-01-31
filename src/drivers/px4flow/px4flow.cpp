@@ -40,6 +40,7 @@
  */
 
 #include <px4_config.h>
+#include <px4_defines.h>
 
 #include <drivers/device/i2c.h>
 
@@ -89,12 +90,6 @@
 
 #define PX4FLOW_MAX_DISTANCE 5.0f
 #define PX4FLOW_MIN_DISTANCE 0.3f
-
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-static const int ERROR = -1;
 
 #ifndef CONFIG_SCHED_WORKQUEUE
 # error This requires CONFIG_SCHED_WORKQUEUE.
@@ -226,7 +221,7 @@ PX4FLOW::~PX4FLOW()
 int
 PX4FLOW::init()
 {
-	int ret = ERROR;
+	int ret = PX4_ERROR;
 
 	/* do I2C init (and probe) first */
 	if (I2C::init() != OK) {
@@ -261,12 +256,12 @@ PX4FLOW::init()
 	/* sensor is ok, but we don't really know if it is within range */
 	_sensor_ok = true;
 
-	/* get rotation */
+	/* get yaw rotation from sensor frame to body frame */
 	param_t rot = param_find("SENS_FLOW_ROT");
 
 	/* only set it if the parameter exists */
 	if (rot != PARAM_INVALID) {
-		int32_t val = 0;
+		int32_t val = 6; // the recommended installation for the flow sensor is with the Y sensor axis forward
 		param_get(rot, &val);
 
 		_sensor_rotation = (enum Rotation)val;
@@ -543,7 +538,7 @@ PX4FLOW::collect()
 
 	report.sensor_id = 0;
 
-	/* rotate measurements according to parameter */
+	/* rotate measurements in yaw from sensor frame to body frame according to parameter SENS_FLOW_ROT */
 	float zeroval = 0.0f;
 
 	rotate_3f(_sensor_rotation, report.pixel_flow_x_integral, report.pixel_flow_y_integral, zeroval);
@@ -662,12 +657,6 @@ PX4FLOW::print_info()
  */
 namespace px4flow
 {
-
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-const int ERROR = -1;
 
 PX4FLOW	*g_dev = nullptr;
 bool start_in_progress = false;

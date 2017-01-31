@@ -680,6 +680,9 @@ BAROSIM::collect()
 		report.altitude = raw_baro.altitude;
 		report.temperature = raw_baro.temperature;
 
+		/* fake device ID */
+		report.device_id = 478459;
+
 		/* publish it */
 		if (!(m_pub_blocked)) {
 			if (_baro_topic != nullptr) {

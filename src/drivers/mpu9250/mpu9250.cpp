@@ -166,18 +166,29 @@ MPU9250::MPU9250(device::Device *interface, device::Device *mag_interface, const
 	// disable debug() calls
 	_debug_enabled = false;
 
+	/* Set device parameters and make sure parameters of the bus device are adopted */
 	_device_id.devid_s.devtype = DRV_ACC_DEVTYPE_MPU9250;
+	_device_id.devid_s.bus_type = (device::Device::DeviceBusType)_interface->get_device_bus_type();
+	_device_id.devid_s.bus = _interface->get_device_bus();
+	_device_id.devid_s.address = _interface->get_device_address();
 
 	/* Prime _gyro with parents devid. */
+	/* Set device parameters and make sure parameters of the bus device are adopted */
 	_gyro->_device_id.devid = _device_id.devid;
 	_gyro->_device_id.devid_s.devtype = DRV_GYR_DEVTYPE_MPU9250;
+	_gyro->_device_id.devid_s.bus_type = _interface->get_device_bus_type();
+	_gyro->_device_id.devid_s.bus = _interface->get_device_bus();
+	_gyro->_device_id.devid_s.address = _interface->get_device_address();
 
 	/* Prime _mag with parents devid. */
 	_mag->_device_id.devid = _device_id.devid;
 	_mag->_device_id.devid_s.devtype = DRV_MAG_DEVTYPE_MPU9250;
+	_mag->_device_id.devid_s.bus_type = _interface->get_device_bus_type();
+	_mag->_device_id.devid_s.bus = _interface->get_device_bus();
+	_mag->_device_id.devid_s.address = _interface->get_device_address();
 
 	/* For an independent mag, ensure that it is connected to the i2c bus */
-
+	_interface->set_device_type(_device_id.devid_s.devtype);
 
 	// default accel scale factors
 	_accel_scale.x_offset = 0;
@@ -1418,6 +1429,9 @@ MPU9250::measure()
 	arb.temperature_raw = report.temp;
 	arb.temperature = _last_temperature;
 
+	/* return device ID */
+	arb.device_id = _device_id.devid;
+
 	grb.x_raw = report.gyro_x;
 	grb.y_raw = report.gyro_y;
 	grb.z_raw = report.gyro_z;
@@ -1450,6 +1464,9 @@ MPU9250::measure()
 
 	grb.temperature_raw = report.temp;
 	grb.temperature = _last_temperature;
+
+	/* return device ID */
+	grb.device_id = _gyro->_device_id.devid;
 
 	_accel_reports->force(&arb);
 	_gyro_reports->force(&grb);

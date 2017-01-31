@@ -41,6 +41,7 @@
 #include "calibration_routines.h"
 #include "commander_helper.h"
 
+#include <px4_defines.h>
 #include <px4_posix.h>
 #include <px4_time.h>
 #include <stdio.h>
@@ -56,13 +57,7 @@
 #include <systemlib/err.h>
 #include <systemlib/airspeed.h>
 
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-static const int ERROR = -1;
-
-static const char *sensor_name = "dpress";
+static const char *sensor_name = "airspeed";
 
 static void feedback_calibration_failed(orb_advert_t *mavlink_log_pub)
 {
@@ -72,7 +67,7 @@ static void feedback_calibration_failed(orb_advert_t *mavlink_log_pub)
 
 int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 {
-	int result = OK;
+	int result = PX4_OK;
 	unsigned calibration_counter = 0;
 	const unsigned maxcount = 2400;
 
@@ -96,7 +91,7 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 	int  fd = px4_open(AIRSPEED0_DEVICE_PATH, 0);
 
 	if (fd > 0) {
-		if (OK == px4_ioctl(fd, AIRSPEEDIOCSSCALE, (long unsigned int)&airscale)) {
+		if (PX4_OK == px4_ioctl(fd, AIRSPEEDIOCSSCALE, (long unsigned int)&airscale)) {
 			paramreset_successful = true;
 
 		} else {
@@ -147,6 +142,14 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 			diff_pres_offset += diff_pres.differential_pressure_raw_pa;
 			calibration_counter++;
 
+			/* any differential pressure failure a reason to abort */
+			if (diff_pres.error_count != 0) {
+				calibration_log_critical(mavlink_log_pub, "[cal] Airspeed sensor is reporting errors (%d)", diff_pres.error_count);
+				calibration_log_critical(mavlink_log_pub, "[cal] Check your wiring before trying again");
+				feedback_calibration_failed(mavlink_log_pub);
+				goto error_return;
+			}
+
 			if (calibration_counter % (calibration_count / 20) == 0) {
 				calibration_log_info(mavlink_log_pub, CAL_QGC_PROGRESS_MSG, (calibration_counter * 80) / calibration_count);
 			}
@@ -165,7 +168,7 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 		int  fd_scale = px4_open(AIRSPEED0_DEVICE_PATH, 0);
 		airscale.offset_pa = diff_pres_offset;
 		if (fd_scale > 0) {
-			if (OK != px4_ioctl(fd_scale, AIRSPEEDIOCSSCALE, (long unsigned int)&airscale)) {
+			if (PX4_OK != px4_ioctl(fd_scale, AIRSPEEDIOCSSCALE, (long unsigned int)&airscale)) {
 				calibration_log_critical(mavlink_log_pub, "[cal] airspeed offset update failed");
 			}
 
@@ -247,6 +250,7 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 
 				feedback_calibration_failed(mavlink_log_pub);
 				goto error_return;
+
 			} else {
 				calibration_log_info(mavlink_log_pub, "[cal] Positive pressure: OK (%d Pa)",
 					(int)diff_pres.differential_pressure_raw_pa);
@@ -270,6 +274,10 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 	calibration_log_info(mavlink_log_pub, CAL_QGC_DONE_MSG, sensor_name);
 	tune_neutral(true);
 
+	/* Wait 2sec for the airflow to stop and ensure the driver filter has caught up, otherwise
+	 * the followup preflight checks might fail. */
+	usleep(2e6);
+
 normal_return:
 	calibrate_cancel_unsubscribe(cancel_sub);
 	px4_close(diff_pres_sub);
@@ -280,6 +288,6 @@ normal_return:
 	return result;
 
 error_return:
-	result = ERROR;
+	result = PX4_ERROR;
 	goto normal_return;
 }

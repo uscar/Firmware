@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2015-2017 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -152,6 +152,16 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 					/* set and send parameter */
 					param_set(param, &(set.param_value));
 					send_param(param);
+
+					/* check for deprecated value, coming from an older GCS */
+					if (strcmp(name, "SYS_MC_EST_GROUP") == 0) {
+						uint32_t val = *(uint32_t *)&set.param_value;
+
+						if (val == 0) { //INAV
+							mavlink_log_critical(_mavlink->get_mavlink_log_pub(),
+									     "INAV is deprecated. Using LPE after reboot");
+						}
+					}
 				}
 			}
 
@@ -326,6 +336,13 @@ MavlinkParametersManager::send(const hrt_abstime t)
 		mavlink_param_value_t msg;
 		msg.param_count = value.param_count;
 		msg.param_index = value.param_index;
+		/*
+		 * coverity[buffer_size_warning : FALSE]
+		 *
+		 * The MAVLink spec does not require the string to be NUL-terminated if it
+		 * has length 16. In this case the receiving end needs to terminate it
+		 * when copying it.
+		 */
 		strncpy(msg.param_id, value.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
 
 		if (value.param_type == MAV_PARAM_TYPE_REAL32) {
@@ -339,7 +356,11 @@ MavlinkParametersManager::send(const hrt_abstime t)
 			msg.param_type = MAVLINK_TYPE_INT32_T;
 		}
 
-		mavlink_msg_param_value_send_struct(_mavlink->get_channel(), &msg);
+		// Re-pack the message with the UAVCAN node ID
+		mavlink_message_t mavlink_packet;
+		mavlink_msg_param_value_encode_chan(mavlink_system.sysid, value.node_id, _mavlink->get_channel(), &mavlink_packet,
+						    &msg);
+		_mavlink_resend_uart(_mavlink->get_channel(), &mavlink_packet);
 
 	} else if (_send_all_index >= 0 && _mavlink->boot_complete()) {
 		/* send all parameters if requested, but only after the system has booted */
@@ -397,7 +418,7 @@ MavlinkParametersManager::send(const hrt_abstime t)
 }
 
 int
-MavlinkParametersManager::send_param(param_t param)
+MavlinkParametersManager::send_param(param_t param, int component_id)
 {
 	if (param == PARAM_INVALID) {
 		return 1;
@@ -416,7 +437,13 @@ MavlinkParametersManager::send_param(param_t param)
 	msg.param_count = param_count_used();
 	msg.param_index = param_get_used_index(param);
 
-	/* copy parameter name */
+	/*
+	 * coverity[buffer_size_warning : FALSE]
+	 *
+	 * The MAVLink spec does not require the string to be NUL-terminated if it
+	 * has length 16. In this case the receiving end needs to terminate it
+	 * when copying it.
+	 */
 	strncpy(msg.param_id, param_name(param), MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
 
 	/* query parameter type */
@@ -436,7 +463,17 @@ MavlinkParametersManager::send_param(param_t param)
 		msg.param_type = MAVLINK_TYPE_FLOAT;
 	}
 
-	mavlink_msg_param_value_send_struct(_mavlink->get_channel(), &msg);
+	/* default component ID */
+	if (component_id < 0) {
+		mavlink_msg_param_value_send_struct(_mavlink->get_channel(), &msg);
+
+	} else {
+
+		// Re-pack the message with a different component ID
+		mavlink_message_t mavlink_packet;
+		mavlink_msg_param_value_encode_chan(mavlink_system.sysid, component_id, _mavlink->get_channel(), &mavlink_packet, &msg);
+		_mavlink_resend_uart(_mavlink->get_channel(), &mavlink_packet);
+	}
 
 	return 0;
 }

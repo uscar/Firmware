@@ -53,11 +53,13 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include <px4_tasks.h>
 #include <systemlib/err.h>
-#include <systemlib/systemlib.h>
 #include <termios.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/topics/sensor_baro.h>
+#include <math.h>	// NAN
 
 #include "sPort_data.h"
 #include "frsky_data.h"

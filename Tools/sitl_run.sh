@@ -24,6 +24,7 @@ echo build_path: $build_path
 
 working_dir=`pwd`
 sitl_bin=$build_path/src/firmware/posix/px4
+rootfs=$build_path/tmp/rootfs
 
 if [ "$chroot" == "1" ]
 then
@@ -32,6 +33,13 @@ then
 else
 	chroot_enabled=""
 	sudo_enabled=""
+fi
+
+# To disable user input
+if [[ -n "$NO_PXH" ]]; then
+	no_pxh=-d
+else
+	no_pxh=""
 fi
 
 if [ "$model" == "" ] || [ "$model" == "none" ]
@@ -49,8 +57,10 @@ fi
 
 # kill process names that might stil
 # be running from last time
-pgrep gazebo && pkill gazebo
-pgrep px4 && pkill px4
+pkill -x gazebo || true
+pkill -x px4 || true
+pkill -x px4_$model || true
+
 jmavsim_pid=`ps aux | grep java | grep Simulator | cut -d" " -f1`
 if [ -n "$jmavsim_pid" ]
 then
@@ -95,6 +105,7 @@ then
 	# Check if we need to creat a param file to allow user to change parameters
 	if ! [ -f "$rootfs/replay_params.txt" ]
 		then
+		mkdir -p $rootfs
 		touch $rootfs/replay_params.txt
 	fi
 fi
@@ -109,7 +120,7 @@ fi
 # Do not exit on failure now from here on because we want the complete cleanup
 set +e
 
-sitl_command="$sudo_enabled $sitl_bin $chroot_enabled $src_path $src_path/${rcS_dir}/${model}"
+sitl_command="$sudo_enabled $sitl_bin $no_pxh $chroot_enabled $src_path $src_path/${rcS_dir}/${model}"
 
 echo SITL COMMAND: $sitl_command
 
@@ -126,6 +137,15 @@ then
 elif [ "$debugger" == "valgrind" ]
 then
 	valgrind $sitl_command
+elif [ "$debugger" == "ide" ]
+then
+	echo "######################################################################"
+	echo
+	echo "PX4 simulator not started, use your IDE to start PX4_${model} target."
+	echo "Hit enter to quit..."
+	echo
+	echo "######################################################################"
+	read
 else
 	$sitl_command
 fi

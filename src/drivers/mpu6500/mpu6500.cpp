@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2015, 2016 Airmind Development Team. All rights reserved.
+ *   Copyright (c) 2015, 2016 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1719,9 +1719,6 @@ MPU6500::measure()
 	report.gyro_z = int16_t_from_bytes(mpu_report.gyro_z);
 
 
-
-
-
 	if (report.accel_x == 0 &&
 	    report.accel_y == 0 &&
 	    report.accel_z == 0 &&
@@ -1749,29 +1746,6 @@ MPU6500::measure()
 		return;
 	}
 
-#if defined(CONFIG_ARCH_BOARD_MINDPX_V2)
-	/*
-	 * Swap axes and negate z
-	 */
-	int16_t accel_xt = report.accel_y;
-	int16_t accel_yt = report.accel_x;
-	int16_t accel_zt = ((report.accel_z == -32768) ? 32767 : -report.accel_z);
-
-	int16_t gyro_xt = report.gyro_y;
-	int16_t gyro_yt = report.gyro_x;
-	int16_t gyro_zt = ((report.gyro_z == -32768) ? 32767 : -report.gyro_z);
-
-	/*
-	 * Apply the swap
-	 */
-	report.accel_x = accel_xt;
-	report.accel_y = accel_yt;
-	report.accel_z = accel_zt;
-	report.gyro_x = gyro_xt;
-	report.gyro_y = gyro_yt;
-	report.gyro_z = gyro_zt;
-
-#else
 	/*
 	 * Swap axes and negate y
 	 */
@@ -1788,7 +1762,7 @@ MPU6500::measure()
 	report.accel_y = accel_yt;
 	report.gyro_x = gyro_xt;
 	report.gyro_y = gyro_yt;
-#endif
+
 	/*
 	 * Report buffers.
 	 */
@@ -1859,6 +1833,9 @@ MPU6500::measure()
 	arb.temperature_raw = report.temp;
 	arb.temperature = _last_temperature;
 
+	/* return device ID */
+	arb.device_id = _device_id.devid;
+
 	grb.x_raw = report.gyro_x;
 	grb.y_raw = report.gyro_y;
 	grb.z_raw = report.gyro_z;
@@ -1891,6 +1868,9 @@ MPU6500::measure()
 
 	grb.temperature_raw = report.temp;
 	grb.temperature = _last_temperature;
+
+	/* return device ID */
+	grb.device_id = _gyro->_device_id.devid;
 
 	_accel_reports->force(&arb);
 	_gyro_reports->force(&grb);
@@ -2110,7 +2090,7 @@ start(bool external_bus, enum Rotation rotation, int range)
 fail:
 
 	if (*g_dev_ptr != nullptr) {
-		delete(*g_dev_ptr);
+		delete *g_dev_ptr;
 		*g_dev_ptr = nullptr;
 	}
 

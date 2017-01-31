@@ -92,6 +92,10 @@ public:
 		MISSION_YAWMODE_MAX = 4
 	};
 
+	bool set_current_offboard_mission_index(unsigned index);
+
+	unsigned find_offboard_land_start();
+
 private:
 	/**
 	 * Update onboard mission topic
@@ -109,12 +113,6 @@ private:
 	void advance_mission();
 
 	/**
-	 * Check distance to first waypoint (with lat/lon)
-	 * @return true only if it's not too far from home (< MIS_DIST_1WP)
-	 */
-	bool check_dist_1wp();
-
-	/**
 	 * Set new mission items
 	 */
 	void set_mission_items();
@@ -122,7 +120,7 @@ private:
 	/**
 	 * Returns true if we need to do a takeoff at the current state
 	 */
-	bool do_need_takeoff();
+	bool do_need_vertical_takeoff();
 
 	/**
 	 * Returns true if we need to move to waypoint location before starting descent
@@ -165,6 +163,11 @@ private:
 	void altitude_sp_foh_reset();
 
 	/**
+	 * Update the cruising speed setpoint.
+	 */
+	void cruising_speed_sp_update();
+
+	/**
 	 * Abort landing
 	 */
 	void do_abort_landing();
@@ -178,7 +181,7 @@ private:
 	 * @return true if current mission item available
 	 */
 	bool prepare_mission_items(bool onboard, struct mission_item_s *mission_item,
-		struct mission_item_s *next_position_mission_item, bool *has_next_position_item);
+				   struct mission_item_s *next_position_mission_item, bool *has_next_position_item);
 
 	/**
 	 * Read current (offset == 0) or a specific (offset > 0) mission item
@@ -214,7 +217,7 @@ private:
 	void set_mission_finished();
 
 	/**
-	 * Check wether a mission is ready to go
+	 * Check whether a mission is ready to go
 	 */
 	void check_mission_valid(bool force);
 
@@ -228,6 +231,11 @@ private:
 	 * Returns true if we need to reset the mission
 	 */
 	bool need_to_reset_mission(bool active);
+
+	/**
+	 * Project current location with heading to far away location and fill setpoint.
+	 */
+	void generate_waypoint_from_heading(struct position_setpoint_s *setpoint, float yaw);
 
 	control::BlockParamInt _param_onboard_enabled;
 	control::BlockParamFloat _param_takeoff_alt;
@@ -257,9 +265,7 @@ private:
 	MissionFeasibilityChecker _missionFeasibilityChecker; /**< class that checks if a mission is feasible */
 
 	float _min_current_sp_distance_xy; /**< minimum distance which was achieved to the current waypoint  */
-	float _mission_item_previous_alt; /**< holds the altitude of the previous mission item,
-					    can be replaced by a full copy of the previous mission item if needed */
-	float _on_arrival_yaw; /**< holds the yaw value that should be applied when the current waypoint is reached */
+
 	float _distance_current_previous; /**< distance from previous to current sp in pos_sp_triplet,
 					    only use if current and previous are valid */
 
@@ -273,7 +279,6 @@ private:
 		WORK_ITEM_TYPE_TRANSITON_BEFORE_LAND,	/**<  */
 		WORK_ITEM_TYPE_MOVE_TO_LAND_AFTER_TRANSITION	/**<  */
 	} _work_item_type;	/**< current type of work to do (sub mission item) */
-
 };
 
 #endif

@@ -335,8 +335,7 @@ MEASAirspeed::cycle()
 void
 MEASAirspeed::voltage_correction(float &diff_press_pa, float &temperature)
 {
-#if defined(CONFIG_ARCH_BOARD_PX4FMU_V2) || defined(CONFIG_ARCH_BOARD_PX4FMU_V4) \
-	|| defined(CONFIG_ARCH_BOARD_MINDPX_V2)
+#if defined(ADC_SCALED_V5_SENSE)
 
 	if (_t_system_power == -1) {
 		_t_system_power = orb_subscribe(ORB_ID(system_power));
@@ -390,7 +389,7 @@ MEASAirspeed::voltage_correction(float &diff_press_pa, float &temperature)
 	}
 
 	temperature -= voltage_diff * temp_slope;
-#endif // defined(CONFIG_ARCH_BOARD_PX4FMU_V2) || defined(CONFIG_ARCH_BOARD_PX4FMU_V4)
+#endif // defined(ADC_SCALED_V5_SENSE)
 }
 
 /**
@@ -398,12 +397,6 @@ MEASAirspeed::voltage_correction(float &diff_press_pa, float &temperature)
  */
 namespace meas_airspeed
 {
-
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-const int ERROR = -1;
 
 MEASAirspeed	*g_dev = nullptr;
 

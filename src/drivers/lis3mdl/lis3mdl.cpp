@@ -40,6 +40,7 @@
  */
 
 #include <px4_config.h>
+#include <px4_defines.h>
 
 #include <drivers/device/i2c.h>
 
@@ -78,9 +79,6 @@
 
 #include "lis3mdl.h"
 
-#undef DEVICE_DEBUG
-#define DEVICE_DEBUG printf
-
 /*
  * LIS3MDL internal constants and data structures.
  */
@@ -114,12 +112,6 @@ enum LIS3MDL_BUS {
 	LIS3MDL_BUS_I2C_EXTERNAL,
 	LIS3MDL_BUS_SPI
 };
-
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-static const int ERROR = -1;
 
 #ifndef CONFIG_SCHED_WORKQUEUE
 # error This requires CONFIG_SCHED_WORKQUEUE.
@@ -360,6 +352,10 @@ LIS3MDL::LIS3MDL(device::Device *interface, const char *path, enum Rotation rota
 	_temperature_error_count(0),
 	_check_state_cnt(0)
 {
+	// set the device type from the interface
+	_device_id.devid_s.bus_type = _interface->get_device_bus_type();
+	_device_id.devid_s.bus = _interface->get_device_bus();
+	_device_id.devid_s.address = _interface->get_device_address();
 	_device_id.devid_s.devtype = DRV_MAG_DEVTYPE_LIS3MDL;
 
 	// enable debug() calls
@@ -406,7 +402,7 @@ LIS3MDL::~LIS3MDL()
 int
 LIS3MDL::init()
 {
-	int ret = ERROR;
+	int ret = PX4_ERROR;
 
 	ret = CDev::init();
 
@@ -1179,7 +1175,7 @@ out:
 		if (check_scale()) {
 			/* failed */
 			warnx("FAILED: SCALE");
-			ret = ERROR;
+			ret = PX4_ERROR;
 		}
 
 	}
@@ -1324,12 +1320,6 @@ LIS3MDL::print_info()
  */
 namespace lis3mdl
 {
-
-/* oddly, ERROR is not defined for c++ */
-#ifdef ERROR
-# undef ERROR
-#endif
-const int ERROR = -1;
 
 /*
   list of supported bus configurations
