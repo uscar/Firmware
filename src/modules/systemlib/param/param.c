@@ -54,7 +54,7 @@
 #include <unistd.h>
 #include <systemlib/err.h>
 #include <errno.h>
-#include <semaphore.h>
+#include <px4_sem.h>
 #include <math.h>
 
 #include <sys/stat.h>
@@ -117,7 +117,7 @@ struct param_wbuf_s {
 };
 
 
-uint8_t  *param_changed_storage = 0;
+uint8_t  *param_changed_storage = NULL;
 int size_param_changed_storage_bytes = 0;
 const int bits_per_allocation_unit  = (sizeof(*param_changed_storage) * 8);
 
@@ -127,6 +127,7 @@ get_param_info_count(void)
 {
 	/* Singleton creation of and array of bits to track changed values */
 	if (!param_changed_storage) {
+		/* Note that we have a (highly unlikely) race condition here: in the worst case the allocation is done twice */
 		size_param_changed_storage_bytes  = (param_info_count / bits_per_allocation_unit) + 1;
 		param_changed_storage = calloc(size_param_changed_storage_bytes, 1);
 
@@ -156,18 +157,20 @@ static void param_set_used_internal(param_t param);
 
 static param_t param_find_internal(const char *name, bool notification);
 
+static px4_sem_t param_sem; ///< this protects against concurrent access to param_values and param save
+
 /** lock the parameter store */
 static void
 param_lock(void)
 {
-	//do {} while (px4_sem_wait(&param_sem) != 0);
+	do {} while (px4_sem_wait(&param_sem) != 0);
 }
 
 /** unlock the parameter store */
 static void
 param_unlock(void)
 {
-	//px4_sem_post(&param_sem);
+	px4_sem_post(&param_sem);
 }
 
 /** assert that the parameter store is locked */
@@ -175,6 +178,12 @@ static void
 param_assert_locked(void)
 {
 	/* XXX */
+}
+
+void
+param_init(void)
+{
+	px4_sem_init(&param_sem, 0, 1);
 }
 
 /**
@@ -236,7 +245,7 @@ param_find_changed(param_t param)
 }
 
 static void
-param_notify_changes(bool is_saved)
+_param_notify_changes(bool is_saved)
 {
 #if !defined(PARAM_NO_ORB)
 	struct parameter_update_s pup = {
@@ -256,6 +265,12 @@ param_notify_changes(bool is_saved)
 	}
 
 #endif
+}
+
+void
+param_notify_changes(void)
+{
+	_param_notify_changes(true);
 }
 
 param_t
@@ -419,15 +434,22 @@ param_name(param_t param)
 bool
 param_value_is_default(param_t param)
 {
-	return param_find_changed(param) ? false : true;
+	struct param_wbuf_s *s;
+	param_lock();
+	s = param_find_changed(param);
+	param_unlock();
+	return s ? false : true;
 }
 
 bool
 param_value_unsaved(param_t param)
 {
-	static struct param_wbuf_s *s;
+	struct param_wbuf_s *s;
+	param_lock();
 	s = param_find_changed(param);
-	return (s && s->unsaved) ? true : false;
+	bool ret = s && s->unsaved;
+	param_unlock();
+	return ret;
 }
 
 enum param_type_e
@@ -601,7 +623,7 @@ out:
 	 * a thing has been set.
 	 */
 	if (params_changed && notify_changes) {
-		param_notify_changes(is_saved);
+		_param_notify_changes(is_saved);
 	}
 
 	return result;
@@ -687,7 +709,7 @@ param_reset(param_t param)
 	param_unlock();
 
 	if (s != NULL) {
-		param_notify_changes(false);
+		_param_notify_changes(false);
 	}
 
 	return (!param_found);
@@ -707,14 +729,12 @@ param_reset_all(void)
 
 	param_unlock();
 
-	param_notify_changes(false);
+	_param_notify_changes(false);
 }
 
 void
 param_reset_excludes(const char *excludes[], int num_excludes)
 {
-	param_lock();
-
 	param_t	param;
 
 	for (param = 0; handle_in_range(param); param++) {
@@ -737,9 +757,7 @@ param_reset_excludes(const char *excludes[], int num_excludes)
 		}
 	}
 
-	param_unlock();
-
-	param_notify_changes(false);
+	_param_notify_changes(false);
 }
 
 static const char *param_default_file = PX4_ROOTFSDIR"/eeprom/parameters";
@@ -749,6 +767,7 @@ int
 param_set_default_file(const char *filename)
 {
 	if (param_user_file != NULL) {
+		// we assume this is not in use by some other thread
 		free(param_user_file);
 		param_user_file = NULL;
 	}
@@ -797,7 +816,9 @@ param_save_default(void)
 
 	PARAM_CLOSE(fd);
 #else
+	param_lock();
 	res = flash_param_save();
+	param_unlock();
 #endif
 	return res;
 }
@@ -808,7 +829,8 @@ param_save_default(void)
 int
 param_load_default(void)
 {
-	warnx("param_load_default\n");
+	int res = 0;
+#if !defined(FLASH_BASED_PARAMS)
 	int fd_load = PARAM_OPEN(param_get_default_file(), O_RDONLY);
 
 	if (fd_load < 0) {
@@ -829,7 +851,11 @@ param_load_default(void)
 		return -2;
 	}
 
-	return 0;
+#else
+	// no need for locking
+	res = flash_param_load();
+#endif
+	return res;
 }
 
 static void
@@ -903,7 +929,7 @@ param_export(int fd, bool only_unsaved)
 		switch (param_type(s->param)) {
 
 		case PARAM_TYPE_INT32: {
-				param_get(s->param, &i);
+				i = s->val.i;
 				const char *name = param_name(s->param);
 
 				/* lock as short as possible */
@@ -919,7 +945,7 @@ param_export(int fd, bool only_unsaved)
 
 		case PARAM_TYPE_FLOAT: {
 
-				param_get(s->param, &f);
+				f = s->val.f;
 				const char *name = param_name(s->param);
 
 				/* lock as short as possible */
@@ -1128,7 +1154,13 @@ out:
 int
 param_import(int fd)
 {
+#if !defined(FLASH_BASED_PARAMS)
 	return param_import_internal(fd, false);
+#else
+	(void)fd; // unused
+	// no need for locking here
+	return flash_param_import();
+#endif
 }
 
 int

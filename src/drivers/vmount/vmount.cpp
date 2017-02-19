@@ -115,7 +115,7 @@ struct ParameterHandles {
 
 
 /* functions */
-static void usage(void);
+static void usage();
 static void update_params(ParameterHandles &param_handles, Parameters &params, bool &got_changes);
 static bool get_params(ParameterHandles &param_handles, Parameters &params);
 
@@ -161,7 +161,7 @@ static int vmount_thread_main(int argc, char *argv[])
 
 			for (int i = 0 ; i < 3; ++i) {
 				if (!strcmp(argv[1], axis_names[i])) {
-					long angle_deg = strtol(argv[2], NULL, 0);
+					long angle_deg = strtol(argv[2], nullptr, 0);
 					angles[i] = (float)angle_deg;
 					found_axis = true;
 				}

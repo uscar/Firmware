@@ -246,7 +246,7 @@ private:
 	orb_advert_t	_mavlink_log_pub = nullptr;
 
 	float _last_baro_pressure[SENSOR_COUNT_MAX]; /**< pressure from last baro sensors */
-	float _last_best_baro_pressure = 0.f; /**< pressure from last best baro */
+	float _last_best_baro_pressure = 0.0f; /**< pressure from last best baro */
 	sensor_combined_s _last_sensor_data[SENSOR_COUNT_MAX]; /**< latest sensor data from all sensors instances */
 	uint64_t _last_accel_timestamp[SENSOR_COUNT_MAX]; /**< latest full timestamp */
 	uint64_t _last_mag_timestamp[SENSOR_COUNT_MAX]; /**< latest full timestamp */
@@ -265,12 +265,6 @@ private:
 
 	/* sensor thermal compensation */
 	TemperatureCompensation _temperature_compensation;
-	float _accel_offset[SENSOR_COUNT_MAX][3]; /**< offsets to be added to the raw accel data after scale factor correction */
-	float _accel_scale[SENSOR_COUNT_MAX][3]; /**< scale factor corrections to be applied to the raw accel data before offsets are added */
-	float _gyro_offset[SENSOR_COUNT_MAX][3]; /**< offsets to be added to the raw angular rate data after scale factor correction */
-	float _gyro_scale[SENSOR_COUNT_MAX][3]; /**< scale factor corrections to be applied to the raw angular rate data before offsets are added */
-	float _baro_offset[SENSOR_COUNT_MAX]; /**< offsets to be added to the raw baro pressure data after scale factor correction */
-	float _baro_scale[SENSOR_COUNT_MAX]; /**< scale factor corrections to be applied to the raw barp pressure data before offsets are added */
 	struct sensor_correction_s _corrections; /**< struct containing the sensor corrections to be published to the uORB*/
 	orb_advert_t _sensor_correction_pub = nullptr; /**< handle to the sensor correction uORB topic */
 	bool _corrections_changed = false;

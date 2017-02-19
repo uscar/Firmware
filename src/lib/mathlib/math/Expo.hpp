@@ -31,10 +31,26 @@
  *
  ****************************************************************************/
 
+/**
+ * @file Expo.hpp
+ *
+ * So called exponential curve function implementation.
+ * It's essentially a linear combination between a linear and a cubic function.
+ */
+
 #pragma once
 
+#include <platforms/px4_defines.h>
+#include <stdint.h>
 
-/** start temperature calibration in a new task
- * @return 0 on success, <0 error otherwise  */
-int run_temperature_calibration();
+namespace math
+{
 
+template<typename _Tp>
+inline const _Tp expo(const _Tp &value, const _Tp &e)
+{
+	_Tp x = constrain(value ,(_Tp)-1, (_Tp)1);
+	return (1-e)*x + e*x*x*x;
+}
+
+}

@@ -20,7 +20,7 @@ static const char *msg_label = "[lpe] ";  // rate of land detector correction
 
 BlockLocalPositionEstimator::BlockLocalPositionEstimator() :
 	// this block has no parent, and has name LPE
-	SuperBlock(NULL, "LPE"),
+	SuperBlock(nullptr, "LPE"),
 	// subscriptions, set rate, add to list
 	_sub_armed(ORB_ID(actuator_armed), 1000 / 2, 0, &getSubscriptions()),
 	_sub_land(ORB_ID(vehicle_land_detected), 1000 / 2, 0, &getSubscriptions()),
@@ -34,8 +34,8 @@ BlockLocalPositionEstimator::BlockLocalPositionEstimator() :
 	_sub_manual(ORB_ID(manual_control_setpoint), 1000 / 2, 0, &getSubscriptions()),
 	// gps 10 hz
 	_sub_gps(ORB_ID(vehicle_gps_position), 1000 / 10, 0, &getSubscriptions()),
-	// vision 30 hz
-	_sub_vision_pos(ORB_ID(vision_position_estimate), 1000 / 30, 0, &getSubscriptions()),
+	// vision 50 hz
+	_sub_vision_pos(ORB_ID(vehicle_vision_position), 1000 / 50, 0, &getSubscriptions()),
 	// mocap 50 hz
 	_sub_mocap(ORB_ID(att_pos_mocap), 1000 / 50, 0, &getSubscriptions()),
 	// all distance sensors, 10 hz
@@ -44,8 +44,8 @@ BlockLocalPositionEstimator::BlockLocalPositionEstimator() :
 	_sub_dist2(ORB_ID(distance_sensor), 1000 / 10, 2, &getSubscriptions()),
 	_sub_dist3(ORB_ID(distance_sensor), 1000 / 10, 3, &getSubscriptions()),
 	_dist_subs(),
-	_sub_lidar(NULL),
-	_sub_sonar(NULL),
+	_sub_lidar(nullptr),
+	_sub_sonar(nullptr),
 
 	// publications
 	_pub_lpos(ORB_ID(vehicle_local_position), -1, &getPublications()),
@@ -94,6 +94,7 @@ BlockLocalPositionEstimator::BlockLocalPositionEstimator() :
 	_t_max_grade(this, "T_MAX_GRADE"),
 
 	// init origin
+	_fake_origin(this, "FAKE_ORIGIN"),
 	_init_origin_lat(this, "LAT"),
 	_init_origin_lon(this, "LON"),
 
@@ -223,7 +224,7 @@ void BlockLocalPositionEstimator::update()
 	// auto-detect connected rangefinders while not armed
 	bool armedState = _sub_armed.get().armed;
 
-	if (!armedState && (_sub_lidar == NULL || _sub_sonar == NULL)) {
+	if (!armedState && (_sub_lidar == nullptr || _sub_sonar == nullptr)) {
 
 		// detect distance sensors
 		for (int i = 0; i < N_DIST_SUBS; i++) {
@@ -238,13 +239,13 @@ void BlockLocalPositionEstimator::update()
 
 				if (s->get().type == \
 				    distance_sensor_s::MAV_DISTANCE_SENSOR_LASER &&
-				    _sub_lidar == NULL) {
+				    _sub_lidar == nullptr) {
 					_sub_lidar = s;
 					mavlink_and_console_log_info(&mavlink_log_pub, "%sLidar detected with ID %i", msg_label, i);
 
 				} else if (s->get().type == \
 					   distance_sensor_s::MAV_DISTANCE_SENSOR_ULTRASOUND &&
-					   _sub_sonar == NULL) {
+					   _sub_sonar == nullptr) {
 					_sub_sonar = s;
 					mavlink_and_console_log_info(&mavlink_log_pub, "%sSonar detected with ID %i", msg_label, i);
 				}
@@ -302,8 +303,8 @@ void BlockLocalPositionEstimator::update()
 	bool gpsUpdated = (_fusion.get() & FUSE_GPS) && _sub_gps.updated();
 	bool visionUpdated = (_fusion.get() & FUSE_VIS_POS) && _sub_vision_pos.updated();
 	bool mocapUpdated = _sub_mocap.updated();
-	bool lidarUpdated = (_sub_lidar != NULL) && _sub_lidar->updated();
-	bool sonarUpdated = (_sub_sonar != NULL) && _sub_sonar->updated();
+	bool lidarUpdated = (_sub_lidar != nullptr) && _sub_lidar->updated();
+	bool sonarUpdated = (_sub_sonar != nullptr) && _sub_sonar->updated();
 	bool landUpdated = landed()
 			   && ((_timeStamp - _time_last_land) > 1.0e6f / LAND_RATE); // throttle rate
 
@@ -374,11 +375,15 @@ void BlockLocalPositionEstimator::update()
 	// check timeouts
 	checkTimeouts();
 
-	// if we have no lat, lon initialize projection at 0,0
-	if ((_estimatorInitialized & EST_XY) && !_map_ref.init_done) {
+	// if we have no lat, lon initialize projection to LPE_LAT, LPE_LON parameters
+	if (!_map_ref.init_done && (_estimatorInitialized & EST_XY) && _fake_origin.get()) {
 		map_projection_init(&_map_ref,
 				    _init_origin_lat.get(),
 				    _init_origin_lon.get());
+
+		mavlink_and_console_log_info(&mavlink_log_pub, "[lpe] global origin init (parameter) : lat %6.2f lon %6.2f alt %5.1f m",
+					     double(_init_origin_lat.get()), double(_init_origin_lon.get()), double(_altOrigin));
+
 	}
 
 	// reinitialize x if necessary
@@ -520,7 +525,7 @@ void BlockLocalPositionEstimator::update()
 		publishEstimatorStatus();
 		_pub_innov.update();
 
-		if ((_estimatorInitialized & EST_XY)) {
+		if ((_estimatorInitialized & EST_XY) && (_map_ref.init_done || _fake_origin.get())) {
 			publishGlobalPos();
 		}
 	}

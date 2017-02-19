@@ -32,8 +32,9 @@
  ****************************************************************************/
 
 #include "send_event.h"
-#include "temperature_calibration.h"
+#include "temperature_calibration/temperature_calibration.h"
 
+#include <px4_getopt.h>
 #include <px4_log.h>
 #include <drivers/drv_hrt.h>
 
@@ -119,11 +120,27 @@ void SendEvent::process_commands()
 
 	orb_copy(ORB_ID(vehicle_command), _vehicle_command_sub, &cmd);
 
+	bool got_temperature_calibration_command = false, accel = false, baro = false, gyro = false;
+
 	switch (cmd.command) {
 	case vehicle_command_s::VEHICLE_CMD_PREFLIGHT_CALIBRATION:
-		if ((int)(cmd.param1) == 2) { //TODO: this needs to be specified in mavlink (and adjust commander accordingly)...
+		if ((int)(cmd.param1) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION) {
+			gyro = true;
+			got_temperature_calibration_command = true;
+		}
 
-			if (run_temperature_calibration() == 0) {
+		if ((int)(cmd.param5) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION) {
+			accel = true;
+			got_temperature_calibration_command = true;
+		}
+
+		if ((int)(cmd.param7) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION) {
+			baro = true;
+			got_temperature_calibration_command = true;
+		}
+
+		if (got_temperature_calibration_command) {
+			if (run_temperature_calibration(accel, baro, gyro) == 0) {
 				answer_command(cmd, vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
 			} else {
@@ -170,7 +187,8 @@ static void print_usage(const char *reason = nullptr)
 
 	PX4_INFO("usage: send_event {start_listening|stop_listening|status|temperature_calibration}\n"
 		 "\tstart_listening: start background task to listen to events\n"
-		 "\ttemperature_calibration: start temperature calibration task\n"
+		 "\ttemperature_calibration [-g] [-a] [-b]: start temperature calibration task\n"
+		 "\t     all sensors if no option given, 1 or several of gyro, accel, baro otherwise\n"
 		);
 }
 
@@ -223,18 +241,47 @@ int send_event_main(int argc, char *argv[])
 			return -1;
 		}
 
+		bool gyro_calib = false, accel_calib = false, baro_calib = false;
+		bool calib_all = true;
+		int myoptind = 1;
+		int ch;
+		const char *myoptarg = nullptr;
+
+		while ((ch = px4_getopt(argc, argv, "abg", &myoptind, &myoptarg)) != EOF) {
+			switch (ch) {
+			case 'a':
+				accel_calib = true;
+				calib_all = false;
+				break;
+
+			case 'b':
+				baro_calib = true;
+				calib_all = false;
+				break;
+
+			case 'g':
+				gyro_calib = true;
+				calib_all = false;
+				break;
+
+			default:
+				print_usage("unrecognized flag");
+				return 1;
+			}
+		}
+
 		vehicle_command_s cmd = {};
 		cmd.target_system = -1;
 		cmd.target_component = -1;
 
 		cmd.command = vehicle_command_s::VEHICLE_CMD_PREFLIGHT_CALIBRATION;
-		cmd.param1 = 2;
+		cmd.param1 = (gyro_calib || calib_all) ? vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION : NAN;
 		cmd.param2 = NAN;
 		cmd.param3 = NAN;
 		cmd.param4 = NAN;
-		cmd.param5 = NAN;
+		cmd.param5 = (accel_calib || calib_all) ? vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION : NAN;
 		cmd.param6 = NAN;
-		cmd.param7 = NAN;
+		cmd.param7 = (baro_calib || calib_all) ? vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION : NAN;
 
 		orb_advert_t h = orb_advertise_queue(ORB_ID(vehicle_command), &cmd, vehicle_command_s::ORB_QUEUE_LENGTH);
 		(void)orb_unadvertise(h);
