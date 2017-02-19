@@ -4,6 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/toolchains/Toolchain-native.cma
 
 set(config_module_list
 	drivers/boards/sitl
+	drivers/camera_trigger
 	drivers/device
 	drivers/gps
 	drivers/pwm_out_sim
@@ -37,6 +38,7 @@ set(config_module_list
 	modules/commander
 	modules/dataman
 	modules/ekf2
+	modules/events
 	modules/fw_att_control
 	modules/fw_pos_control_l1
 	modules/land_detector

@@ -87,7 +87,6 @@
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/satellite_info.h>
 #include <uORB/topics/att_pos_mocap.h>
-#include <uORB/topics/vision_position_estimate.h>
 #include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/battery_status.h>
@@ -111,7 +110,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/commander_state.h>
 #include <uORB/topics/cpuload.h>
-#include <uORB/topics/low_stack.h>
+#include <uORB/topics/task_stack_info.h>
 
 #include <systemlib/systemlib.h>
 #include <systemlib/param/param.h>
@@ -493,7 +492,6 @@ int create_log_dir()
 
 			/* dir exists already */
 			dir_number++;
-			continue;
 		}
 
 		if (dir_number >= MAX_NO_LOGFOLDER) {
@@ -1189,7 +1187,8 @@ int sdlog2_thread_main(int argc, char *argv[])
 		struct vehicle_global_position_s global_pos;
 		struct position_setpoint_triplet_s triplet;
 		struct att_pos_mocap_s att_pos_mocap;
-		struct vision_position_estimate_s vision_pos;
+		struct vehicle_local_position_s vision_pos;
+		struct vehicle_attitude_s vision_att;
 		struct optical_flow_s flow;
 		struct rc_channels_s rc;
 		struct differential_pressure_s diff_pres;
@@ -1215,7 +1214,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		struct vehicle_land_detected_s land_detected;
 		struct cpuload_s cpuload;
 		struct vehicle_gps_position_s dual_gps_pos;
-		struct low_stack_s low_stack;
+		struct task_stack_info_s task_stack_info;
 	} buf;
 
 	memset(&buf, 0, sizeof(buf));
@@ -1306,6 +1305,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		int sat_info_sub;
 		int att_pos_mocap_sub;
 		int vision_pos_sub;
+		int vision_att_sub;
 		int flow_sub;
 		int rc_sub;
 		int airspeed_sub;
@@ -1329,7 +1329,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		int commander_state_sub;
 		int cpuload_sub;
 		int diff_pres_sub;
-		int low_stack_sub;
+		int task_stack_info_sub;
 	} subs;
 
 	subs.cmd_sub = -1;
@@ -1351,6 +1351,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 	subs.triplet_sub = -1;
 	subs.att_pos_mocap_sub = -1;
 	subs.vision_pos_sub = -1;
+	subs.vision_att_sub = -1;
 	subs.flow_sub = -1;
 	subs.rc_sub = -1;
 	subs.airspeed_sub = -1;
@@ -1373,7 +1374,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 	subs.commander_state_sub = -1;
 	subs.cpuload_sub = -1;
 	subs.diff_pres_sub = -1;
-	subs.low_stack_sub = -1;
+	subs.task_stack_info_sub = -1;
 
 	/* add new topics HERE */
 
@@ -1991,7 +1992,8 @@ int sdlog2_thread_main(int argc, char *argv[])
 			}
 
 			/* --- VISION POSITION --- */
-			if (copy_if_updated(ORB_ID(vision_position_estimate), &subs.vision_pos_sub, &buf.vision_pos)) {
+			if (copy_if_updated(ORB_ID(vehicle_vision_position), &subs.vision_pos_sub, &buf.vision_pos) ||
+			    copy_if_updated(ORB_ID(vehicle_vision_attitude), &subs.vision_att_sub, &buf.vision_att)) {
 				log_msg.msg_type = LOG_VISN_MSG;
 				log_msg.body.log_VISN.x = buf.vision_pos.x;
 				log_msg.body.log_VISN.y = buf.vision_pos.y;
@@ -1999,10 +2001,10 @@ int sdlog2_thread_main(int argc, char *argv[])
 				log_msg.body.log_VISN.vx = buf.vision_pos.vx;
 				log_msg.body.log_VISN.vy = buf.vision_pos.vy;
 				log_msg.body.log_VISN.vz = buf.vision_pos.vz;
-				log_msg.body.log_VISN.qw = buf.vision_pos.q[0]; // vision_position_estimate uses [w,x,y,z] convention
-				log_msg.body.log_VISN.qx = buf.vision_pos.q[1];
-				log_msg.body.log_VISN.qy = buf.vision_pos.q[2];
-				log_msg.body.log_VISN.qz = buf.vision_pos.q[3];
+				log_msg.body.log_VISN.qw = buf.vision_att.q[0]; // vision_position_estimate uses [w,x,y,z] convention
+				log_msg.body.log_VISN.qx = buf.vision_att.q[1];
+				log_msg.body.log_VISN.qy = buf.vision_att.q[2];
+				log_msg.body.log_VISN.qz = buf.vision_att.q[3];
 				LOGBUFFER_WRITE_AND_COUNT(VISN);
 			}
 
@@ -2319,10 +2321,11 @@ int sdlog2_thread_main(int argc, char *argv[])
 		}
 
 		/* --- STACK --- */
-		if (copy_if_updated(ORB_ID(low_stack), &subs.low_stack_sub, &buf.low_stack)) {
+		if (copy_if_updated(ORB_ID(task_stack_info), &subs.task_stack_info_sub, &buf.task_stack_info)) {
 			log_msg.msg_type = LOG_STCK_MSG;
-			log_msg.body.log_STCK.stack_free = buf.low_stack.stack_free;
-			strncpy(log_msg.body.log_STCK.task_name, (char*)buf.low_stack.task_name, sizeof(log_msg.body.log_STCK.task_name));
+			log_msg.body.log_STCK.stack_free = buf.task_stack_info.stack_free;
+			strncpy(log_msg.body.log_STCK.task_name, (char*)buf.task_stack_info.task_name,
+					sizeof(log_msg.body.log_STCK.task_name));
 			LOGBUFFER_WRITE_AND_COUNT(STCK);
 		}
 

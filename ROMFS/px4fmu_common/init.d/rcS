@@ -405,11 +405,17 @@ then
 		gps start
 	fi
 
+	set DATAMAN_OPT ""
+	if ver hwcmp AEROFC_V1
+	then
+		set DATAMAN_OPT -r
+	fi
 	# waypoint storage
 	# REBOOTWORK this needs to start in parallel
-	if dataman start
+	if dataman start $DATAMAN_OPT
 	then
 	fi
+	unset DATAMAN_OPT
 
 	#
 	# Sensors System (start before Commander so Preflight checks are properly run)
@@ -641,6 +647,10 @@ then
 		then
 			mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -m onboard -r 5000 -x
 		fi
+		if param compare SYS_COMPANION 460800
+		then
+			mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 460800 -m onboard -r 5000 -x
+		fi
 		if param compare SYS_COMPANION 157600
 		then
 			mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -m osd -r 1000
@@ -660,6 +670,10 @@ then
 		if param compare SYS_COMPANION 357600
 		then
 			mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 57600 -r 1000
+		fi
+		if param compare SYS_COMPANION 3115200
+		then
+			mavlink start -d ${MAVLINK_COMPANION_DEVICE} -b 115200 -r 1000
 		fi
 		if param compare SYS_COMPANION 419200
 		then
@@ -1057,6 +1071,32 @@ then
 		fi
 
 	fi
+
+	#
+	# Check if we should start a thermal calibration
+	# TODO move further up and don't start unnecessary services if we are calibrating
+	#
+	set TEMP_CALIB_ARGS ""
+	if param compare SYS_CAL_GYRO 1
+	then
+		set TEMP_CALIB_ARGS "${TEMP_CALIB_ARGS} -g"
+		param set SYS_CAL_GYRO 0
+	fi
+	if param compare SYS_CAL_ACCEL 1
+	then
+		set TEMP_CALIB_ARGS "${TEMP_CALIB_ARGS} -a"
+		param set SYS_CAL_ACCEL 0
+	fi
+	if param compare SYS_CAL_BARO 1
+	then
+		set TEMP_CALIB_ARGS "${TEMP_CALIB_ARGS} -b"
+		param set SYS_CAL_BARO 0
+	fi
+	if [ "x$TEMP_CALIB_ARGS" != "x" ]
+	then
+		send_event temperature_calibration ${TEMP_CALIB_ARGS}
+	fi
+	unset TEMP_CALIB_ARGS
 
 # End of autostart
 fi

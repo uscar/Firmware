@@ -133,7 +133,7 @@ private:
 	/**
 	 * Worker task: main GPS thread that configures the GPS and parses incoming data, always running
 	 */
-	void				task_main(void);
+	void				task_main();
 
 	/**
 	 * Set the baudrate of the UART to the GPS
@@ -375,7 +375,6 @@ GPSSIM::task_main()
 
 	/* tell the dtor that we are exiting */
 	_task = -1;
-	return;
 }
 
 
