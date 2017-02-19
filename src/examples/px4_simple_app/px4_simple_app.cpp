@@ -67,12 +67,50 @@
 
 extern "C" __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
+static bool run_task = false;
+static int daemon_task;
+static float[] Rbody = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f 0.0f, 0.0f, 0.0f, 0.0f};
+
+int main_thread(int argc, char* argv[]);
+
 int px4_simple_app_main(int argc, char *argv[])
+{
+
+ if (argc < 2) {
+   PX4_INFO("Usage: px4_simple_app <start> | <stop>");
+   return 1;
+ }
+
+ if (!strcmp(argv[1], "start")) {
+   if (!run_task) {
+        PX4_INFO("Starting testing application...");
+     run_task = true;
+     daemon_task = px4_task_spawn_cmd("px4_simple_app",
+                SCHED_DEFAULT,
+                SCHED_PRIORITY_MAX - 5,
+                13500,
+                main_thread,
+                (argv && argc > 2) ?
+                (char *const *) &argv[2] : (char *const *) nullptr);
+   }
+ } else if (!strcmp(argv[1], "stop")) {
+   run_task = false;
+ } else {
+   PX4_INFO("Usage: px4_simple_app <start> | <stop>");
+ }
+
+ return 0;
+}
+
+int main_thread(int argc, char *argv[])
 {
 	PX4_INFO("Starting testing application...");
   uORB::Subscription<optical_flow_s> flow_sub(ORB_ID(optical_flow));
   uORB::Subscription<home_position_s> home_pos_sub(ORB_ID(home_position));
   uORB::Subscription<sensor_combined_s> sensor_sub(ORB_ID(sensor_combined));
+
+
+  uORB::Subscription<vehicle_attitude_s> vehicle_attitude_sub(ORB_ID(vehicle_attitude));
 
   uORB::Subscription<vehicle_attitude_setpoint_s> vehicle_setpoint_sub(ORB_ID(vehicle_attitude_setpoint));
 
@@ -88,14 +126,19 @@ int px4_simple_app_main(int argc, char *argv[])
       ORB_ID(actuator_armed), -1);
 
   
-  // actuator_armed_pub.get().ready_to_arm = true;
-  // actuator_armed_pub.get().armed = true;
-  // actuator_armed_pub.update();
+  actuator_armed_pub.get().ready_to_arm = true;
+  actuator_armed_pub.get().armed = true;
+  actuator_armed_pub.update();
 
-  // control_mode_pub.get().flag_control_offboard_enabled = true;
-  // control_mode_pub.get().flag_control_position_enabled = true;
-  // control_mode_pub.get().flag_control_altitude_enabled = true;
-  // control_mode_pub.update();
+  control_mode_pub.get().flag_control_offboard_enabled = true;
+  control_mode_pub.get().flag_control_position_enabled = false;
+  control_mode_pub.get().flag_control_altitude_enabled = true;
+  control_mode_pub.get().flag_control_altitude_enabled = true;
+  control_mode_pub.get().flag_control_rates_enabled = true;
+  control_mode_pub.get().flag_control_attitude_enabled = true;
+  control_mode_pub.get().flag_control_rattitude_enabled = true;
+  control_mode_pub.get().flag_control_force_enabled = true;
+  control_mode_pub.update();
 
   // pos_setpoint_pub.get().previous.x = home.x;
   // pos_setpoint_pub.get().previous.y = home.y;
@@ -114,58 +157,75 @@ int px4_simple_app_main(int argc, char *argv[])
 
   // pos_setpoint_pub.update();
 
-  double thrust = 0.0;
-  while (true) {
+  double thrust = 0.5;
+  float MAX_HEIGHT = 0.31f;
+    
+  while (run_task) {
+    vehicle_attitude_sub.update();
+    vehicle_setpoint_sub.update();
+    sensor_sub.update();
+    flow_sub.update();
+
     vehicle_setpoint_pub.get().roll_body = 0.0;
     vehicle_setpoint_pub.get().pitch_body = 0.0;
-    vehicle_setpoint_pub.get().yaw_body = 0.0;
-    vehicle_setpoint_pub.get().R_valid = false;
-    vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0;
+    vehicle_setpoint_pub.get().R_body = Rbody;
+    vehicle_setpoint_pub.get().R_valid = true;
+    vehicle_setpoint_pub.get().yaw_body = (float) vehicle_attitude_sub.get().yaw;
+    vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.5;
     vehicle_setpoint_pub.get().thrust = (float) thrust;
-    vehicle_setpoint_pub.get().roll_reset_integral = false;
-    vehicle_setpoint_pub.get().pitch_reset_integral = false;
-    vehicle_setpoint_pub.get().yaw_reset_integral = false;
-    vehicle_setpoint_pub.get().fw_control_yaw = false;
-    vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
-    vehicle_setpoint_pub.get().apply_flaps = false;
     vehicle_setpoint_pub.update();
 
-    thrust += 0.0001;
+    thrust += 0.001;
 
-    flow_sub.update();
     auto flow = flow_sub.get();
+    //auto sensors = sensor_sub.get();
 
-    sensor_sub.update();
-    auto sensors = sensor_sub.get();
 
-    if (flow.ground_distance_m > 1.0f || sensors.baro_alt_meter > 1.0f) {
-      PX4_INFO("Above 1.0m. Setting attitude to land.");
-      vehicle_setpoint_pub.get().roll_body = 0.0f;
-      vehicle_setpoint_pub.get().pitch_body = 0.0f;
-      vehicle_setpoint_pub.get().yaw_body = 0.0f;
-      vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
-      vehicle_setpoint_pub.get().thrust = 0.0f;
-      vehicle_setpoint_pub.get().fw_control_yaw = false;
-      vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
-      vehicle_setpoint_pub.get().apply_flaps = false;
-      vehicle_setpoint_pub.update();
+    /*struct pollfd fds;
+    fds.fd = 0; //stdin
+    fds.events = POLLIN;
 
-      actuator_armed_pub.get().ready_to_arm = false;
-      actuator_armed_pub.get().armed = false;
-      actuator_armed_pub.update();
+     // abort on user request 
+    char c = 0;
+    int ret = poll(&fds, 1, 100);
+    if (ret > 0)
+        read(0, &c, 1);
 
+    if (c == 0x03 || c == 0x63 || c == 'q' || */
+      if (flow.ground_distance_m > MAX_HEIGHT /*|| 
+        (double) sensors.baro_alt_meter > MAX_HEIGHT*/
+          || thrust > 1.2) {
       break;
     }
 
-    vehicle_setpoint_sub.update();
+
     double r = vehicle_setpoint_sub.get().roll_body;
     double p = vehicle_setpoint_sub.get().pitch_body;
     double y = vehicle_setpoint_sub.get().yaw_body;
     double t = vehicle_setpoint_sub.get().thrust;
-    PX4_INFO("Roll: %8.4f\tPitch: %8.4f\tYaw: %8.4f\tThrust: %8.4f\t", r, p, y, t);
+    PX4_INFO("Setpoints Roll: %8.4f\tPitch: %8.4f\tYaw: %8.4f\tThrust: %8.4f\t", r, p, y, t);
+
+    double ra = vehicle_attitude_sub.get().roll;
+    double pa = vehicle_attitude_sub.get().pitch;
+    double ya = vehicle_attitude_sub.get().yaw;
+    PX4_INFO("Actual Roll: %8.4f\tPitch: %8.4f\tYaw: %8.4f\t", ra, pa, ya);
 
     usleep(100000);
   }
-  
-	return 0;
+
+  //PX4_INFO("Aborting %8.4f     %8.4f", (double) flow.ground_distance_m, 
+  //                                         (double) sensors.baro_alt_meter);
+  vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
+  vehicle_setpoint_pub.get().thrust = 0.0f;
+  vehicle_setpoint_pub.get().fw_control_yaw = false;
+  vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
+  vehicle_setpoint_pub.get().apply_flaps = false;
+  vehicle_setpoint_pub.update();
+
+  actuator_armed_pub.get().ready_to_arm = false;
+  actuator_armed_pub.get().armed = false;
+  actuator_armed_pub.update();
+  run_task = false;
+
+  return 0;
 }
