@@ -110,11 +110,11 @@ set(config_module_list
 	#
 	# Vehicle Control
 	#
-	modules/fw_pos_control_l1
-	modules/fw_att_control
+	# modules/fw_pos_control_l1
+	# modules/fw_att_control
 	modules/mc_att_control
-	modules/mc_pos_control
-	modules/vtol_att_control
+    modules/mc_pos_control
+	# modules/vtol_att_control
 
 	#
 	# Logging
@@ -170,7 +170,8 @@ set(config_module_list
 	#examples/math_demo
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
-	#examples/px4_simple_app
+	examples/px4_simple_app
+	examples/alt_ctl
 
 	# Tutorial code from
 	# https://px4.io/dev/daemon

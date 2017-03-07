@@ -31,11 +31,11 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE examples__px4_simple_app
-	MAIN px4_simple_app
+	MODULE examples__alt_ctl
+	MAIN alt_ctl
 	STACK_MAIN 2000
 	SRCS
-		px4_simple_app.cpp
+		alt_ctl.cpp
 	DEPENDS
 		platforms__common
 	)
