@@ -157,8 +157,8 @@ void setQuaternionAttSetpoint(vehicle_attitude_setpoint_s & set, double roll, do
 int main_thread(int argc, char *argv[])
 {
   constexpr uint64_t DELAY = 5E6L;
-  constexpr uint64_t TIMEOUT = 30E6L;
-  constexpr uint64_t E_TIMEOUT = TIMEOUT + 10E6L;
+  // constexpr uint64_t TIMEOUT = 30E6L;
+  // constexpr uint64_t E_TIMEOUT = TIMEOUT + 10E6L;
   usleep(DELAY);
   mavlink_and_console_log_info(&mavlink_log_pub, "Starting testing application...");
 
@@ -171,10 +171,10 @@ int main_thread(int argc, char *argv[])
   uORB::Subscription<vehicle_local_position_s> vehicle_local_position_sub(ORB_ID(vehicle_local_position));
   uORB::Subscription<rc_channels_s> rc_channels_sub(ORB_ID(rc_channels));
 
-  uORB::Publication<vehicle_attitude_setpoint_s> vehicle_setpoint_pub(
-      ORB_ID(vehicle_attitude_setpoint), 0);
-  uORB::Publication<position_setpoint_triplet_s> pos_setpoint_pub(
-      ORB_ID(position_setpoint_triplet), 0);
+  // uORB::Publication<vehicle_attitude_setpoint_s> vehicle_setpoint_pub(
+  //     ORB_ID(vehicle_attitude_setpoint), 0);
+  // uORB::Publication<position_setpoint_triplet_s> pos_setpoint_pub(
+  //     ORB_ID(position_setpoint_triplet), 0);
   uORB::Publication<vehicle_control_mode_s> control_mode_pub(
       ORB_ID(vehicle_control_mode), 0);
   uORB::Publication<actuator_armed_s> actuator_armed_pub(
@@ -183,13 +183,15 @@ int main_thread(int argc, char *argv[])
   actuator_armed_pub.get().armed = true;
   actuator_armed_pub.update();
   control_mode_pub.get().flag_armed = true;
-  control_mode_pub.get().flag_control_offboard_enabled = true;
-  control_mode_pub.get().flag_control_position_enabled = true;
-  control_mode_pub.get().flag_control_altitude_enabled = true;
+  control_mode_pub.get().flag_control_offboard_enabled = false;
+  control_mode_pub.get().flag_control_position_enabled = false;
+  control_mode_pub.get().flag_control_altitude_enabled = false;
   control_mode_pub.get().flag_control_attitude_enabled = true;
-  control_mode_pub.get().flag_control_velocity_enabled = true;
-  control_mode_pub.get().flag_control_climb_rate_enabled = true;
+  control_mode_pub.get().flag_control_rattitude_enabled = true;
+  control_mode_pub.get().flag_control_velocity_enabled = false;
+  control_mode_pub.get().flag_control_climb_rate_enabled = false;
   control_mode_pub.get().flag_control_rates_enabled = true;
+  control_mode_pub.get().flag_control_manual_enabled = true;
   control_mode_pub.update();
   vehicle_setpoint_sub.update();
   sensor_sub.update();
@@ -205,26 +207,26 @@ int main_thread(int argc, char *argv[])
 
   // Waypoints to visit after first takeoff
   std::vector<position_setpoint_s> waypoints = GetWaypoints(initialZ, lpos.yaw);
-  pos_setpoint_pub.get().current.type = position_setpoint_s::SETPOINT_TYPE_OFFBOARD;
-  pos_setpoint_pub.get().current.valid = true;
-  pos_setpoint_pub.get().current.position_valid = true;
-  pos_setpoint_pub.get().current.alt_valid = true;
-  pos_setpoint_pub.get().current.yaw_valid = true;
-  pos_setpoint_pub.get().current.x = 0.0f;
-  pos_setpoint_pub.get().current.y = 0.0f;
-  pos_setpoint_pub.get().current.z = initialZ + HEIGHT_OFFSET; // set z setpoint .25 higher than initial z
-  pos_setpoint_pub.get().current.yaw = lpos.yaw;
-  pos_setpoint_pub.get().current.disable_mc_yaw_control = true;
-  pos_setpoint_pub.update();
-  constexpr float TOLERANCE_RADIUS = 0.1f;
-  constexpr float SHUTOFF_H = 1.0f;
-  constexpr float LAND_THRESHOLD = -0.075f;
-  int waypoint_index = 0;
-  position_setpoint_s current_setpoint = pos_setpoint_pub.get().current;
+  // pos_setpoint_pub.get().current.type = position_setpoint_s::SETPOINT_TYPE_OFFBOARD;
+  // pos_setpoint_pub.get().current.valid = true;
+  // pos_setpoint_pub.get().current.position_valid = true;
+  // pos_setpoint_pub.get().current.alt_valid = true;
+  // pos_setpoint_pub.get().current.yaw_valid = true;
+  // pos_setpoint_pub.get().current.x = 0.0f;
+  // pos_setpoint_pub.get().current.y = 0.0f;
+  // pos_setpoint_pub.get().current.z = initialZ + HEIGHT_OFFSET; // set z setpoint .25 higher than initial z
+  // pos_setpoint_pub.get().current.yaw = lpos.yaw;
+  // pos_setpoint_pub.get().current.disable_mc_yaw_control = true;
+  // pos_setpoint_pub.update();
+  // constexpr float TOLERANCE_RADIUS = 0.1f;
+  // constexpr float SHUTOFF_H = 1.0f;
+  // constexpr float LAND_THRESHOLD = -0.075f;
+  // int waypoint_index = 0;
+  // position_setpoint_s current_setpoint = pos_setpoint_pub.get().current;
 
   usleep(5E5L);
 
-  uint64_t start_time = hrt_absolute_time();
+  // uint64_t start_time = hrt_absolute_time();
   while (run_task) {
     // HEIGHT_OFFSET -= 0.001f;
 
@@ -236,20 +238,20 @@ int main_thread(int argc, char *argv[])
     battery_sub.update();
     vehicle_local_position_sub.update();
     lpos = vehicle_local_position_sub.get();
-    float dist = GetDistance(lpos, current_setpoint);
+    // float dist = GetDistance(lpos, current_setpoint);
     mavlink_and_console_log_info(&mavlink_log_pub,"(xy, z, fqual) valid: %d, %d, %d",
              lpos.xy_valid, lpos.z_valid, flow_sub.get().quality);
     mavlink_and_console_log_info(&mavlink_log_pub,"(x, y, z): %6.4f, %6.4f, %6.4f",
             (double) lpos.x, (double) lpos.y, (double) lpos.z);
-    mavlink_and_console_log_info(&mavlink_log_pub,"(sx, sy, sz): %6.4f, %6.4f, %6.4f",
-            (double) current_setpoint.x, (double) current_setpoint.y, (double) current_setpoint.z);
-    mavlink_and_console_log_info(&mavlink_log_pub,"Distance From Waypoint: %6.4f", (double) dist);
+    // mavlink_and_console_log_info(&mavlink_log_pub,"(sx, sy, sz): %6.4f, %6.4f, %6.4f",
+    //         (double) current_setpoint.x, (double) current_setpoint.y, (double) current_setpoint.z);
+    // mavlink_and_console_log_info(&mavlink_log_pub,"Distance From Waypoint: %6.4f", (double) dist);
 
     auto rc = rc_channels_sub.get();
     mavlink_and_console_log_info(&mavlink_log_pub,"SS: %6.4f C1: %6.4f C2: %6.4f C3: %6.4f C4: %6.4f C5: %6.4f ", (double) rc.rssi, (double) rc.channels[0], (double) rc.channels[1], 
                                                                                                                   (double) rc.channels[2], (double) rc.channels[3], (double) rc.channels[4]);
 
-    if (!lpos.xy_valid || !lpos.z_valid || lpos.z - current_setpoint.z > SHUTOFF_H || hrt_absolute_time() - start_time > E_TIMEOUT ||
+    /*if (!lpos.xy_valid || !lpos.z_valid || lpos.z - current_setpoint.z > SHUTOFF_H || hrt_absolute_time() - start_time > E_TIMEOUT ||
         (hrt_absolute_time() - start_time > TIMEOUT && (lpos.z - initialZ) > LAND_THRESHOLD)) {
 
       vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
@@ -332,16 +334,16 @@ int main_thread(int argc, char *argv[])
             (double) current_setpoint.x,
             (double) current_setpoint.y,
             (double) current_setpoint.z);
-    } 
+    } */
 
     usleep(50000);
   }
-  vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
-  vehicle_setpoint_pub.get().thrust = 0.0f;
-  vehicle_setpoint_pub.get().fw_control_yaw = false;
-  vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
-  vehicle_setpoint_pub.get().apply_flaps = false;
-  vehicle_setpoint_pub.update();
+  // vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
+  // vehicle_setpoint_pub.get().thrust = 0.0f;
+  // vehicle_setpoint_pub.get().fw_control_yaw = false;
+  // vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
+  // vehicle_setpoint_pub.get().apply_flaps = false;
+  // vehicle_setpoint_pub.update();
   actuator_armed_pub.get().ready_to_arm = false;
   actuator_armed_pub.get().armed = false;
   actuator_armed_pub.update();
