@@ -197,7 +197,7 @@
 #define INT_SRC_M               0x13
 
 /* default values for this device */
-#define LSM303D_ACCEL_DEFAULT_RANGE_G			8
+#define LSM303D_ACCEL_DEFAULT_RANGE_G			16
 #define LSM303D_ACCEL_DEFAULT_RATE			800
 #define LSM303D_ACCEL_DEFAULT_ONCHIP_FILTER_FREQ	50
 #define LSM303D_ACCEL_DEFAULT_DRIVER_FILTER_FREQ	30
@@ -1653,8 +1653,7 @@ LSM303D::mag_measure()
 	} raw_mag_report;
 #pragma pack(pop)
 
-	mag_report mag_report;
-	memset(&mag_report, 0, sizeof(mag_report));
+	mag_report mag_report {};
 
 	/* start the performance counter */
 	perf_begin(_mag_sample_perf);
@@ -1680,6 +1679,7 @@ LSM303D::mag_measure()
 	 */
 
 	mag_report.timestamp = hrt_absolute_time();
+	mag_report.is_external = is_external();
 
 	mag_report.x_raw = raw_mag_report.x;
 	mag_report.y_raw = raw_mag_report.y;

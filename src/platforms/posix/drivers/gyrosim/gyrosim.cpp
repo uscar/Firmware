@@ -148,7 +148,6 @@ private:
 	GYROSIM_gyro		*_gyro;
 	uint8_t			_product;	/** product code */
 
-	WorkHandle		_call;
 	unsigned		_call_interval;
 
 	ringbuffer::RingBuffer	*_accel_reports;
@@ -292,8 +291,6 @@ public:
 protected:
 	friend class GYROSIM;
 
-	void			parent_poll_notify();
-
 	virtual void 		_measure() {};
 private:
 	GYROSIM			*_parent;
@@ -312,7 +309,6 @@ GYROSIM::GYROSIM(const char *path_accel, const char *path_gyro, enum Rotation ro
 	VirtDevObj("GYROSIM", path_accel, ACCEL_BASE_DEVICE_PATH, 1e6 / 400),
 	_gyro(new GYROSIM_gyro(this, path_gyro)),
 	_product(GYROSIMES_REV_C4),
-	_call{},
 	_accel_reports(nullptr),
 	_accel_scale{},
 	_accel_range_scale(0.0f),
@@ -1107,10 +1103,6 @@ GYROSIM::_measure()
 
 
 	if (accel_notify) {
-		/* notify anyone waiting for data */
-		updateNotify();
-		_gyro->parent_poll_notify();
-
 		if (!(_pub_blocked)) {
 			/* log the time of this report */
 			perf_begin(_controller_latency_perf);
@@ -1120,9 +1112,6 @@ GYROSIM::_measure()
 	}
 
 	if (gyro_notify) {
-		updateNotify();
-		_gyro->parent_poll_notify();
-
 		if (!(_pub_blocked)) {
 			/* publish it */
 			orb_publish(ORB_ID(sensor_gyro), _gyro->_gyro_topic, &grb);
@@ -1189,12 +1178,6 @@ GYROSIM_gyro::init()
 	return ret;
 }
 
-void
-GYROSIM_gyro::parent_poll_notify()
-{
-	updateNotify();
-}
-
 ssize_t
 GYROSIM_gyro::devRead(void *buffer, size_t buflen)
 {
@@ -1223,7 +1206,7 @@ namespace gyrosim
 
 GYROSIM	*g_dev_sim; // on simulated bus
 
-int	start(enum Rotation);
+int	start(enum Rotation /*rotation*/);
 int	stop();
 int	test();
 int	reset();

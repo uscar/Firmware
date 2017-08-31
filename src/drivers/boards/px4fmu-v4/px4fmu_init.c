@@ -70,7 +70,7 @@
 #include <arch/board/board.h>
 
 #include <drivers/drv_hrt.h>
-#include <drivers/drv_led.h>
+#include <drivers/drv_board_led.h>
 
 #include <systemlib/px4_macros.h>
 #include <systemlib/cpuload.h>
@@ -153,6 +153,37 @@ __EXPORT void board_peripheral_reset(int ms)
 }
 
 /************************************************************************************
+ * Name: board_on_reset
+ *
+ * Description:
+ * Optionally provided function called on entry to board_system_reset
+ * It should perform any house keeping prior to the rest.
+ *
+ * status - 1 if resetting to boot loader
+ *          0 if just resetting
+ *
+ ************************************************************************************/
+__EXPORT void board_on_reset(int status)
+{
+	/* configure the GPIO pins to outputs and keep them low */
+
+	stm32_configgpio(GPIO_GPIO0_OUTPUT);
+	stm32_configgpio(GPIO_GPIO1_OUTPUT);
+	stm32_configgpio(GPIO_GPIO2_OUTPUT);
+	stm32_configgpio(GPIO_GPIO3_OUTPUT);
+	stm32_configgpio(GPIO_GPIO4_OUTPUT);
+	stm32_configgpio(GPIO_GPIO5_OUTPUT);
+
+	/* On resets invoked from system (not boot) insure we establish a low
+	 * output state (discharge the pins) on PWM pins before they become inputs.
+	 */
+
+	if (status >= 0) {
+		up_mdelay(400);
+	}
+}
+
+/************************************************************************************
  * Name: stm32_boardinitialize
  *
  * Description:
@@ -165,6 +196,14 @@ __EXPORT void board_peripheral_reset(int ms)
 __EXPORT void
 stm32_boardinitialize(void)
 {
+	/* Reset all PWM to Low outputs */
+
+	board_on_reset(-1);
+
+	/* configure LEDs */
+	board_autoled_initialize();
+
+
 	/* configure ADC pins */
 	stm32_configgpio(GPIO_ADC1_IN2);	/* BATT_VOLTAGE_SENS */
 	stm32_configgpio(GPIO_ADC1_IN3);	/* BATT_CURRENT_SENS */
@@ -174,32 +213,30 @@ stm32_boardinitialize(void)
 	/* configure power supply control/sense pins */
 	stm32_configgpio(GPIO_PERIPH_3V3_EN);
 	stm32_configgpio(GPIO_VDD_BRICK_VALID);
+	stm32_configgpio(GPIO_VDD_USB_VALID);
+
+	/* Start with Sensor voltage off We will enable it
+	 * in board_app_initialize
+	 */
+	stm32_configgpio(GPIO_VDD_3V3_SENSORS_EN);
 
 	stm32_configgpio(GPIO_SBUS_INV);
-	stm32_configgpio(GPIO_8266_GPIO0);
 	stm32_configgpio(GPIO_SPEKTRUM_PWR_EN);
+
+	stm32_configgpio(GPIO_8266_GPIO0);
 	stm32_configgpio(GPIO_8266_PD);
 	stm32_configgpio(GPIO_8266_RST);
+
+	/* Safety - led don in led driver */
+
 	stm32_configgpio(GPIO_BTN_SAFETY);
+	stm32_configgpio(GPIO_RSSI_IN);
+	stm32_configgpio(GPIO_PPM_IN);
 
-#ifdef GPIO_RC_OUT
-	stm32_configgpio(GPIO_RC_OUT);      /* Serial RC output pin */
-	stm32_gpiowrite(GPIO_RC_OUT, 1);    /* set it high to pull RC input up */
-#endif
+	/* configure SPI all interfaces GPIO */
 
-	/* configure the GPIO pins to outputs and keep them low */
-	stm32_configgpio(GPIO_GPIO0_OUTPUT);
-	stm32_configgpio(GPIO_GPIO1_OUTPUT);
-	stm32_configgpio(GPIO_GPIO2_OUTPUT);
-	stm32_configgpio(GPIO_GPIO3_OUTPUT);
-	stm32_configgpio(GPIO_GPIO4_OUTPUT);
-	stm32_configgpio(GPIO_GPIO5_OUTPUT);
+	stm32_spiinitialize(PX4_SPI_BUS_RAMTRON | PX4_SPI_BUS_SENSORS);
 
-	/* configure SPI interfaces */
-	stm32_spiinitialize();
-
-	/* configure LEDs */
-	board_autoled_initialize();
 }
 
 /****************************************************************************
@@ -419,6 +456,10 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	led_off(LED_GREEN);
 	led_off(LED_BLUE);
 
+	/* Power up there sensors */
+
+	stm32_gpiowrite(GPIO_VDD_3V3_SENSORS_EN, 1);
+
 	/* Configure SPI-based devices */
 
 	spi1 = stm32_spibus_initialize(1);
@@ -428,6 +469,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 		board_autoled_on(LED_RED);
 		return -ENODEV;
 	}
+
 
 	/* Default SPI1 to 1MHz and de-assert the known chip selects. */
 	SPI_SETFREQUENCY(spi1, 10000000);

@@ -65,7 +65,7 @@
 #include <arch/board/board.h>
 
 #include <drivers/drv_hrt.h>
-#include <drivers/drv_led.h>
+#include <drivers/drv_board_led.h>
 
 #include <systemlib/px4_macros.h>
 #include <systemlib/cpuload.h>
@@ -369,13 +369,6 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	drv_led_start();
 	led_off(LED_AMBER);
 	led_off(LED_BLUE);
-
-	result = board_i2c_initialize();
-
-	if (result != OK) {
-		led_on(LED_AMBER);
-		return -ENODEV;
-	}
 
 #if defined(FLASH_BASED_PARAMS)
 	static sector_descriptor_t  sector_map[] = {

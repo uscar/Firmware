@@ -39,8 +39,19 @@
 
 #pragma once
 
+#define BOARD_OVERRIDE_UUID "SIMULATIONID" // must be of length 12 (PX4_CPU_UUID_BYTE_LENGTH)
+#define BOARD_OVERRIDE_MFGUID BOARD_OVERRIDE_UUID
+
 #define BOARD_NAME "SITL"
 #define BOARD_BATTERY1_V_DIV   (10.177939394f)
 #define BOARD_BATTERY1_A_PER_V (15.391030303f)
 #define BOARD_HAS_NO_RESET
 #define BOARD_HAS_NO_BOOTLOADER
+
+#define CONFIG_ARCH_BOARD_SITL 1
+
+#define PX4_I2C_BUS_EXPANSION	1
+#define PX4_NUMBER_I2C_BUSES 1
+
+#include <system_config.h>
+#include "../common/board_common.h"

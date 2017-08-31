@@ -49,7 +49,7 @@
 
 #define HASH_PARAM "_HASH_CHECK"
 
-MavlinkParametersManager::MavlinkParametersManager(Mavlink *mavlink) : MavlinkStream(mavlink),
+MavlinkParametersManager::MavlinkParametersManager(Mavlink *mavlink) :
 	_send_all_index(-1),
 	_uavcan_open_request_list(nullptr),
 	_uavcan_waiting_for_request_response(false),
@@ -57,7 +57,8 @@ MavlinkParametersManager::MavlinkParametersManager(Mavlink *mavlink) : MavlinkSt
 	_rc_param_map_pub(nullptr),
 	_rc_param_map(),
 	_uavcan_parameter_request_pub(nullptr),
-	_uavcan_parameter_value_sub(-1)
+	_uavcan_parameter_value_sub(-1),
+	_mavlink(mavlink)
 {
 }
 MavlinkParametersManager::~MavlinkParametersManager()
@@ -75,12 +76,6 @@ unsigned
 MavlinkParametersManager::get_size()
 {
 	return MAVLINK_MSG_ID_PARAM_VALUE_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
-}
-
-unsigned
-MavlinkParametersManager::get_size_avg()
-{
-	return 0;
 }
 
 void
@@ -319,6 +314,25 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 void
 MavlinkParametersManager::send(const hrt_abstime t)
 {
+	int max_num_to_send;
+
+	if (_mavlink->get_protocol() == SERIAL && !_mavlink->is_usb_uart()) {
+		max_num_to_send = 3;
+
+	} else {
+		// speed up parameter loading via UDP, TCP or USB: try to send 15 at once
+		max_num_to_send = 5 * 3;
+	}
+
+	int i = 0;
+
+	while (i++ < max_num_to_send && send_one());
+}
+
+
+bool
+MavlinkParametersManager::send_one()
+{
 	bool space_available = _mavlink->get_free_tx_buf() >= get_size();
 
 	/* Send parameter values received from the UAVCAN topic */
@@ -374,7 +388,7 @@ MavlinkParametersManager::send(const hrt_abstime t)
 
 		/* skip if no space is available */
 		if (!space_available) {
-			return;
+			return false;
 		}
 
 		/* The first thing we send is a hash of all values for the ground
@@ -397,7 +411,7 @@ MavlinkParametersManager::send(const hrt_abstime t)
 			_send_all_index = 0;
 
 			/* No further action, return now */
-			return;
+			return true;
 		}
 
 		/* look for the first parameter which is used */
@@ -415,6 +429,10 @@ MavlinkParametersManager::send(const hrt_abstime t)
 
 		if ((p == PARAM_INVALID) || (_send_all_index >= (int) param_count())) {
 			_send_all_index = -1;
+			return false;
+
+		} else {
+			return true;
 		}
 
 	} else if (_send_all_index == PARAM_HASH && hrt_absolute_time() > 20 * 1000 * 1000) {
@@ -422,6 +440,8 @@ MavlinkParametersManager::send(const hrt_abstime t)
 		_mavlink->send_statustext_critical("WARNING: SYSTEM BOOT INCOMPLETE. CHECK CONFIG.");
 		_mavlink->set_boot_complete();
 	}
+
+	return false;
 }
 
 int

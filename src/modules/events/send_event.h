@@ -34,27 +34,38 @@
 #pragma once
 
 #include <px4_workqueue.h>
+#include <px4_module.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
 
 extern "C" __EXPORT int send_event_main(int argc, char *argv[]);
 
-class SendEvent
+class SendEvent : public ModuleBase<SendEvent>
 {
 public:
-	/** Start background listening for commands
-	 *
-	 * @return 0 if successfull, -1 on error. */
-	int start();
+	SendEvent();
 
-	/** Stop background listener */
-	void stop();
+	/**
+	 * Initialize class in the same context as the work queue. And start the background listener.
+	 * @return 0 if successful, <0 on error */
+	static int task_spawn(int argc, char *argv[]);
 
-	bool is_running() { return _task_is_running; }
+	/** @see ModuleBase */
+	static int custom_command(int argc, char *argv[]);
 
-	void print_status();
+	/** @see ModuleBase */
+	static int print_usage(const char *reason = nullptr);
 
 private:
+
+	/** Start background listening for commands
+	 *
+	 * @return 0 if successful, <0 on error. */
+	int start();
+
+
+	/** Trampoline for initialisation. */
+	static void initialize_trampoline(void *arg);
 	/** Trampoline for the work queue. */
 	static void cycle_trampoline(void *arg);
 
@@ -67,9 +78,7 @@ private:
 	/** return an ACK to a vehicle_command */
 	void answer_command(const vehicle_command_s &cmd, unsigned result);
 
-	volatile bool _task_should_exit = false;
-	volatile bool _task_is_running = false;
-	struct work_s _work = {};
+	static struct work_s _work;
 	int _vehicle_command_sub = -1;
 	orb_advert_t _command_ack_pub = nullptr;
 };

@@ -56,7 +56,6 @@
 #include <uORB/topics/offboard_control_mode.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
-#include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/att_pos_mocap.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
@@ -68,6 +67,8 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/telemetry_status.h>
 #include <uORB/topics/debug_key_value.h>
+#include <uORB/topics/debug_value.h>
+#include <uORB/topics/debug_vect.h>
 #include <uORB/topics/airspeed.h>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/vehicle_force_setpoint.h>
@@ -80,7 +81,10 @@
 #include <uORB/topics/collision_report.h>
 
 
+#include "mavlink_mission.h"
+#include "mavlink_parameters.h"
 #include "mavlink_ftp.h"
+#include "mavlink_log_handler.h"
 
 #define PX4_EPOCH_SECS 1234567890ULL
 
@@ -100,17 +104,13 @@ public:
 	~MavlinkReceiver();
 
 	/**
-	* Start the mavlink task.
-	 *
-	 * @return		OK on success.
-	 */
-	int		start();
-
-	/**
 	 * Display the mavlink status.
 	 */
 	void		print_status();
 
+	/**
+	 * Start the receiver thread
+	 */
 	static void receive_start(pthread_t *thread, Mavlink *parent);
 
 	static void *start_helper(void *context);
@@ -120,6 +120,7 @@ private:
 	void handle_message(mavlink_message_t *msg);
 	void handle_message_command_long(mavlink_message_t *msg);
 	void handle_message_command_int(mavlink_message_t *msg);
+	void handle_message_command_ack(mavlink_message_t *msg);
 	void handle_message_optical_flow_rad(mavlink_message_t *msg);
 	void handle_message_hil_optical_flow(mavlink_message_t *msg);
 	void handle_message_set_mode(mavlink_message_t *msg);
@@ -151,6 +152,10 @@ private:
 	void handle_message_battery_status(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
 	void handle_message_logging_ack(mavlink_message_t *msg);
+	void handle_message_play_tune(mavlink_message_t *msg);
+	void handle_message_named_value_float(mavlink_message_t *msg);
+	void handle_message_debug(mavlink_message_t *msg);
+	void handle_message_debug_vect(mavlink_message_t *msg);
 
 	void *receive_thread(void *arg);
 
@@ -190,11 +195,20 @@ private:
 
 	bool	evaluate_target_ok(int command, int target_system, int target_component);
 
+	void send_flight_information();
+
 	Mavlink	*_mavlink;
-	mavlink_status_t status;
-	struct vehicle_local_position_s hil_local_pos;
-	struct vehicle_land_detected_s hil_land_detector;
+
+	MavlinkMissionManager		_mission_manager;
+	MavlinkParametersManager	_parameters_manager;
+	MavlinkFTP			_mavlink_ftp;
+	MavlinkLogHandler		_mavlink_log_handler;
+
+	mavlink_status_t _status; ///< receiver status, used for mavlink_parse_char()
+	struct vehicle_local_position_s _hil_local_pos;
+	struct vehicle_land_detected_s _hil_land_detector;
 	struct vehicle_control_mode_s _control_mode;
+	struct actuator_armed_s _actuator_armed;
 	orb_advert_t _global_pos_pub;
 	orb_advert_t _local_pos_pub;
 	orb_advert_t _attitude_pub;
@@ -230,10 +244,14 @@ private:
 	orb_advert_t _transponder_report_pub;
 	orb_advert_t _collision_report_pub;
 	orb_advert_t _control_state_pub;
+	orb_advert_t _debug_key_value_pub;
+	orb_advert_t _debug_value_pub;
+	orb_advert_t _debug_vect_pub;
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
 	int _control_mode_sub;
+	int _actuator_armed_sub;
 	uint64_t _global_ref_timestamp;
 	int _hil_frames;
 	uint64_t _old_timestamp;
@@ -252,7 +270,10 @@ private:
 	uint8_t _mom_switch_pos[MOM_SWITCH_COUNT];
 	uint16_t _mom_switch_state;
 
-	/* do not allow copying this class */
-	MavlinkReceiver(const MavlinkReceiver &);
-	MavlinkReceiver operator=(const MavlinkReceiver &);
+	param_t _p_bat_emergen_thr;
+	param_t _p_bat_crit_thr;
+	param_t _p_bat_low_thr;
+
+	MavlinkReceiver(const MavlinkReceiver &) = delete;
+	MavlinkReceiver operator=(const MavlinkReceiver &) = delete;
 };

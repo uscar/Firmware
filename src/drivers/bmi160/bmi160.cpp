@@ -637,12 +637,10 @@ BMI160::ioctl(struct file *filp, int cmd, unsigned long arg)
 			case SENSOR_POLLRATE_DEFAULT:
 				if (BMI160_GYRO_DEFAULT_RATE > BMI160_ACCEL_DEFAULT_RATE) {
 					return ioctl(filp, SENSORIOCSPOLLRATE, BMI160_GYRO_DEFAULT_RATE);
-					warnx("GYROOOOOOOOO");
 
 				} else {
 					return ioctl(filp, SENSORIOCSPOLLRATE,
 						     BMI160_ACCEL_DEFAULT_RATE); //Polling at the highest frequency. We may get duplicate values on the sensors
-					warnx("ACCELLLLLLLLLLLL");
 				}
 
 			/* adjust to a legal polling interval in Hz */
@@ -1292,7 +1290,7 @@ BMI160::measure()
 	grb.temperature = _last_temperature;
 
 	/* return device ID */
-	grb.device_id = _gyro->_device_id.devid;;
+	grb.device_id = _gyro->_device_id.devid;
 
 	_accel_reports->force(&arb);
 	_gyro_reports->force(&grb);

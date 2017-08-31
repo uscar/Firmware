@@ -1,6 +1,6 @@
-/****************************************************************************
+ /****************************************************************************
  *
- *   Copyright (c) 2013-2016 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2013-2017 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,7 +77,7 @@ typedef struct  {
 static calibrate_return gyro_calibration_worker(int cancel_sub, void* data)
 {
 	gyro_worker_data_t*	worker_data = (gyro_worker_data_t*)(data);
-	unsigned		calibration_counter[max_gyros] = { 0 };
+	unsigned		calibration_counter[max_gyros] = { 0 }, slow_count = 0;
 	const unsigned		calibration_count = 5000;
 	struct gyro_report	gyro_report;
 	unsigned		poll_errcount = 0;
@@ -102,8 +102,8 @@ static calibrate_return gyro_calibration_worker(int cancel_sub, void* data)
 	memset(&worker_data->gyro_report_0, 0, sizeof(worker_data->gyro_report_0));
 
 
-	/* use first gyro to pace, but count correctly per-gyro for statistics */
-	while (calibration_counter[0] < calibration_count) {
+	/* use slowest gyro to pace, but count correctly per-gyro for statistics */
+	while (slow_count < calibration_count) {
 		if (calibrate_cancel_check(worker_data->mavlink_log_pub, cancel_sub)) {
 			return calibrate_return_cancelled;
 		}
@@ -119,8 +119,13 @@ static calibrate_return gyro_calibration_worker(int cancel_sub, void* data)
 		int poll_ret = px4_poll(&fds[0], max_gyros, 1000);
 
 		if (poll_ret > 0) {
-
+			unsigned update_count = calibration_count;
 			for (unsigned s = 0; s < max_gyros; s++) {
+				if (calibration_counter[s] >= calibration_count) {
+					// Skip if instance has enough samples
+					continue;
+				}
+
 				bool changed;
 				orb_check(worker_data->gyro_sensor_sub[s], &changed);
 
@@ -160,9 +165,20 @@ static calibrate_return gyro_calibration_worker(int cancel_sub, void* data)
 
 				}
 
-				if (s == 0 && calibration_counter[0] % (calibration_count / 20) == 0) {
-					calibration_log_info(worker_data->mavlink_log_pub, CAL_QGC_PROGRESS_MSG, (calibration_counter[0] * 100) / calibration_count);
+				// Maintain the sample count of the slowest sensor 
+				if (calibration_counter[s] && calibration_counter[s] < update_count) {
+					update_count = calibration_counter[s];
 				}
+
+			}
+
+			if (update_count % (calibration_count / 20) == 0) {
+				calibration_log_info(worker_data->mavlink_log_pub, CAL_QGC_PROGRESS_MSG, (update_count * 100) / calibration_count);
+			}
+
+			// Propagate out the slowest sensor's count
+			if (slow_count < update_count) {
+				slow_count = update_count;
 			}
 
 		} else {
@@ -227,7 +243,7 @@ int do_gyro_calibration(orb_advert_t *mavlink_log_pub)
 
 		// Reset all offsets to 0 and scales to 1
 		(void)memcpy(&worker_data.gyro_scale[s], &gyro_scale_zero, sizeof(gyro_scale_zero));
-#if !defined(__PX4_QURT) && !defined(__PX4_POSIX_EAGLE) && !defined(__PX4_POSIX_EXCELSIOR) && !defined(__PX4_POSIX_RPI) && !defined(__PX4_POSIX_BEBOP)
+#ifdef __PX4_NUTTX
 		sprintf(str, "%s%u", GYRO_BASE_DEVICE_PATH, s);
 		int fd = px4_open(str, 0);
 		if (fd >= 0) {
@@ -277,28 +293,62 @@ int do_gyro_calibration(orb_advert_t *mavlink_log_pub)
 	}
 
 	// We should not try to subscribe if the topic doesn't actually exist and can be counted.
-	const unsigned gyro_count = orb_group_count(ORB_ID(sensor_gyro));
-	for (unsigned s = 0; s < gyro_count; s++) {
+	const unsigned orb_gyro_count = orb_group_count(ORB_ID(sensor_gyro));
 
-		worker_data.gyro_sensor_sub[s] = orb_subscribe_multi(ORB_ID(sensor_gyro), s);
-#if defined(__PX4_QURT) || defined(__PX4_POSIX_EAGLE) || defined(__PX4_POSIX_EXCELSIOR) || defined(__PX4_POSIX_RPI) || defined(__PX4_POSIX_BEBOP)
-		// For QURT respectively the driver framework, we need to get the device ID by copying one report.
-		struct gyro_report gyro_report;
-		orb_copy(ORB_ID(sensor_gyro), worker_data.gyro_sensor_sub[s], &gyro_report);
-		worker_data.device_id[s] = gyro_report.device_id;
+	// Warn that we will not calibrate more than max_gyros gyroscopes
+	if (orb_gyro_count > max_gyros) {
+		calibration_log_critical(mavlink_log_pub, "[cal] Detected %u gyros, but will calibrate only %u", orb_gyro_count, max_gyros);
+	}
+
+	for (unsigned cur_gyro = 0; cur_gyro < orb_gyro_count && cur_gyro < max_gyros; cur_gyro++) {
+
+		// Lock in to correct ORB instance
+		bool found_cur_gyro = false;
+		for(unsigned i = 0; i < orb_gyro_count && !found_cur_gyro; i++) {
+			worker_data.gyro_sensor_sub[cur_gyro] = orb_subscribe_multi(ORB_ID(sensor_gyro), i);
+
+			struct gyro_report report;
+			orb_copy(ORB_ID(sensor_gyro), worker_data.gyro_sensor_sub[cur_gyro], &report);
+
+#ifdef __PX4_NUTTX
+
+			// For NuttX, we get the UNIQUE device ID from the sensor driver via an IOCTL
+			// and match it up with the one from the uORB subscription, because the
+			// instance ordering of uORB and the order of the FDs may not be the same.
+
+			if(report.device_id == worker_data.device_id[cur_gyro]) {
+				// Device IDs match, correct ORB instance for this gyro
+				found_cur_gyro = true;
+			} else {
+				orb_unsubscribe(worker_data.gyro_sensor_sub[cur_gyro]);
+			}
+
+#else
+
+			// For the DriverFramework drivers, we fill device ID (this is the first time) by copying one report.
+			worker_data.device_id[cur_gyro] = report.device_id;
+			found_cur_gyro = true;
+
 #endif
+		}
 
-		if (worker_data.device_id[s] != 0) {
+		if(!found_cur_gyro) {
+			calibration_log_critical(mavlink_log_pub, "[cal] Gyro #%u (ID %u) no matching uORB devid", cur_gyro, worker_data.device_id[cur_gyro]);
+			res = calibrate_return_error;
+			break;
+		}
+
+		if (worker_data.device_id[cur_gyro] != 0) {
 			// Get priority
 			int32_t prio;
-			orb_priority(worker_data.gyro_sensor_sub[s], &prio);
+			orb_priority(worker_data.gyro_sensor_sub[cur_gyro], &prio);
 
 			if (prio > device_prio_max) {
 				device_prio_max = prio;
-				device_id_primary = worker_data.device_id[s];
+				device_id_primary = worker_data.device_id[cur_gyro];
 			}
 		} else {
-			calibration_log_critical(mavlink_log_pub, "[cal] Gyro #%u no device id, abort", s);
+			calibration_log_critical(mavlink_log_pub, "[cal] Gyro #%u no device id, abort", cur_gyro);
 		}
 	}
 
@@ -423,7 +473,7 @@ int do_gyro_calibration(orb_advert_t *mavlink_log_pub)
 				(void)sprintf(str, "CAL_GYRO%u_ID", uorb_index);
 				failed |= (PX4_OK != param_set_no_notification(param_find(str), &(worker_data.device_id[uorb_index])));
 
-#if !defined(__PX4_QURT) && !defined(__PX4_POSIX_EAGLE) && !defined(__PX4_POSIX_EXCELSIOR) && !defined(__PX4_POSIX_RPI) && !defined(__PX4_POSIX_BEBOP)
+#ifdef __PX4_NUTTX
 				/* apply new scaling and offsets */
 				(void)sprintf(str, "%s%u", GYRO_BASE_DEVICE_PATH, uorb_index);
 				int fd = px4_open(str, 0);
@@ -455,15 +505,6 @@ int do_gyro_calibration(orb_advert_t *mavlink_log_pub)
 
 	/* store last 32bit number - not unique, but unique in a given set */
 	(void)param_set(param_find("CAL_BOARD_ID"), &mcu_id[PX4_CPU_UUID_WORD32_UNIQUE_H]);
-
-	if (res == PX4_OK) {
-		/* auto-save to EEPROM */
-		res = param_save_default();
-
-		if (res != PX4_OK) {
-			calibration_log_critical(mavlink_log_pub, CAL_ERROR_SAVE_PARAMS_MSG);
-		}
-	}
 
 	/* if there is a any preflight-check system response, let the barrage of messages through */
 	usleep(200000);

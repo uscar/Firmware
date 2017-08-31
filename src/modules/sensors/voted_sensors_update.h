@@ -55,6 +55,7 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/sensor_preflight.h>
 #include <uORB/topics/sensor_correction.h>
+#include <uORB/topics/sensor_selection.h>
 
 #include <DevMgr.hpp>
 
@@ -166,7 +167,7 @@ private:
 		unsigned int last_failover_count;
 	};
 
-	void	init_sensor_class(const struct orb_metadata *meta, SensorData &sensor_data);
+	void	init_sensor_class(const struct orb_metadata *meta, SensorData &sensor_data, uint8_t sensor_count_max);
 
 	/**
 	 * Poll the accelerometer for updated data.
@@ -237,7 +238,6 @@ private:
 	 */
 	bool apply_mag_calibration(DriverFramework::DevHandle &h, const struct mag_calibration_s *mcal, const int device_id);
 
-
 	SensorData _gyro;
 	SensorData _accel;
 	SensorData _mag;
@@ -245,18 +245,18 @@ private:
 
 	orb_advert_t	_mavlink_log_pub = nullptr;
 
-	float _last_baro_pressure[SENSOR_COUNT_MAX]; /**< pressure from last baro sensors */
+	float _last_baro_pressure[BARO_COUNT_MAX]; /**< pressure from last baro sensors */
 	float _last_best_baro_pressure = 0.0f; /**< pressure from last best baro */
 	sensor_combined_s _last_sensor_data[SENSOR_COUNT_MAX]; /**< latest sensor data from all sensors instances */
-	uint64_t _last_accel_timestamp[SENSOR_COUNT_MAX]; /**< latest full timestamp */
-	uint64_t _last_mag_timestamp[SENSOR_COUNT_MAX]; /**< latest full timestamp */
-	uint64_t _last_baro_timestamp[SENSOR_COUNT_MAX]; /**< latest full timestamp */
+	uint64_t _last_accel_timestamp[ACCEL_COUNT_MAX]; /**< latest full timestamp */
+	uint64_t _last_mag_timestamp[MAG_COUNT_MAX]; /**< latest full timestamp */
+	uint64_t _last_baro_timestamp[BARO_COUNT_MAX]; /**< latest full timestamp */
 
 	hrt_abstime _vibration_warning_timestamp = 0;
 	bool _vibration_warning = false;
 
 	math::Matrix<3, 3>	_board_rotation = {};	/**< rotation matrix for the orientation that the board is mounted */
-	math::Matrix<3, 3>	_mag_rotation[SENSOR_COUNT_MAX] = {};	/**< rotation matrix for the orientation that the external mag0 is mounted */
+	math::Matrix<3, 3>	_mag_rotation[MAG_COUNT_MAX] = {};	/**< rotation matrix for the orientation that the external mag0 is mounted */
 
 	const Parameters &_parameters;
 	const bool _hil_enabled; /**< is hardware-in-the-loop mode enabled? */
@@ -269,6 +269,15 @@ private:
 	struct sensor_correction_s _corrections; /**< struct containing the sensor corrections to be published to the uORB*/
 	orb_advert_t _sensor_correction_pub = nullptr; /**< handle to the sensor correction uORB topic */
 	bool _corrections_changed = false;
+
+	/* sensor selection publication */
+	struct sensor_selection_s _selection = {}; /**< struct containing the sensor selection to be published to the uORB*/
+	orb_advert_t _sensor_selection_pub = nullptr; /**< handle to the sensor selection uORB topic */
+	bool _selection_changed = false; /**< true when a sensor selection has changed and not been published */
+	uint32_t _accel_device_id[SENSOR_COUNT_MAX] = {}; /**< accel driver device id for each uorb instance */
+	uint32_t _baro_device_id[SENSOR_COUNT_MAX] = {};
+	uint32_t _gyro_device_id[SENSOR_COUNT_MAX] = {};
+	uint32_t _mag_device_id[SENSOR_COUNT_MAX] = {};
 
 	static const double	_msl_pressure;	/** average sea-level pressure in kPa */
 };

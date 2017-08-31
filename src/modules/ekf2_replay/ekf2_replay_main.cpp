@@ -70,6 +70,8 @@
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/airspeed.h>
+#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_status.h>
 
 #include <sdlog2/sdlog2_messages.h>
 
@@ -532,20 +534,16 @@ void Ekf2Replay::writeMessage(int &fd, void *data, size_t size)
 
 bool Ekf2Replay::needToSaveMessage(uint8_t type)
 {
-	if (type == LOG_ATT_MSG ||
-	    type == LOG_LPOS_MSG ||
-	    type == LOG_EST0_MSG ||
-	    type == LOG_EST1_MSG ||
-	    type == LOG_EST2_MSG ||
-	    type == LOG_EST3_MSG ||
-	    type == LOG_EST4_MSG ||
-	    type == LOG_EST5_MSG ||
-	    type == LOG_EST6_MSG ||
-	    type == LOG_CTS_MSG) {
-		return false;
-	}
-
-	return true;
+	return !(type == LOG_ATT_MSG ||
+		 type == LOG_LPOS_MSG ||
+		 type == LOG_EST0_MSG ||
+		 type == LOG_EST1_MSG ||
+		 type == LOG_EST2_MSG ||
+		 type == LOG_EST3_MSG ||
+		 type == LOG_EST4_MSG ||
+		 type == LOG_EST5_MSG ||
+		 type == LOG_EST6_MSG ||
+		 type == LOG_CTS_MSG);
 }
 
 // update all estimator topics and write them to log file
@@ -843,7 +841,7 @@ void Ekf2Replay::task_main()
 
 	// create path which tells user location of replay file
 	char tmp2[] = "./build_posix_sitl_replay/src/firmware/posix";
-	char *replay_file_location = (char *) malloc(1 + strlen(tmp) + strlen(tmp2) + strlen(replay_log_name));
+	char *replay_file_location = (char *) calloc(1 + strlen(tmp) + strlen(tmp2) + strlen(replay_log_name), 1);
 	strcat(replay_file_location, tmp2);
 	strcat(replay_file_location, replay_log_name);
 	strcat(replay_file_location, tmp);
@@ -1052,6 +1050,8 @@ void Ekf2Replay::task_main()
 		PX4_INFO("Mag innov RMS = %6.4f", (double)sqrtf(_magInnovSumSq / _numInnovSamples));
 		PX4_INFO("TAS innov RMS = %6.3f", (double)sqrtf(_tasInnovSumSq / _numInnovSamples));
 	}
+
+	free(path_to_replay_log);
 
 }
 

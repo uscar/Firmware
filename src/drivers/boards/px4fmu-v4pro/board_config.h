@@ -34,7 +34,7 @@
 /**
  * @file board_config.h
  *
- * PX4FMUv2 internal definitions
+ * PX4FMUv4Pro internal definitions
  */
 
 #pragma once
@@ -46,12 +46,6 @@
 #include <px4_config.h>
 #include <nuttx/compiler.h>
 #include <stdint.h>
-
-__BEGIN_DECLS
-
-/* these headers are not C++ safe */
-#include <stm32.h>
-#include <arch/board/board.h>
 
 /****************************************************************************************************
  * Definitions
@@ -98,7 +92,7 @@ __BEGIN_DECLS
 #define GPIO_SPI_CS_MPU9250		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN2)
 #define GPIO_SPI_CS_LIS3MDL		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN15)
 #define GPIO_SPI_CS_MS5611		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTD|GPIO_PIN7)
-#define GPIO_SPI_CS_ICM_20608_G		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN15)
+#define GPIO_SPI_CS_ICM_2060X		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN15)
 #define GPIO_SPI_CS_TEMPCAL_EEPROM	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTH|GPIO_PIN5)
 
 /* SPI Bus 2 Memory */
@@ -124,7 +118,7 @@ __BEGIN_DECLS
 
 #define GPIO_DRDY_MPU9250       (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTD|GPIO_PIN15)
 #define GPIO_DRDY_LIS3MDL       (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTE|GPIO_PIN12)
-#define GPIO_DRDY_ICM_20608_G   (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN14)
+#define GPIO_DRDY_ICM_2060X   (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN14)
 
 
 /*
@@ -137,12 +131,12 @@ __BEGIN_DECLS
 #define GPIO_SPI_CS_OFF_MPU9250		_PIN_OFF(GPIO_SPI_CS_MPU9250)
 #define GPIO_SPI_CS_OFF_LIS3MDL		_PIN_OFF(GPIO_SPI_CS_LIS3MDL)
 #define GPIO_SPI_CS_OFF_MS5611		_PIN_OFF(GPIO_SPI_CS_MS5611)
-#define GPIO_SPI_CS_OFF_ICM_20608_G	_PIN_OFF(GPIO_SPI_CS_ICM_20608_G)
+#define GPIO_SPI_CS_OFF_ICM_2060X	_PIN_OFF(GPIO_SPI_CS_ICM_2060X)
 #define GPIO_SPI_CS_OFF_TEMPCAL_EEPROM	_PIN_OFF(GPIO_SPI_CS_OFF_TEMPCAL_EEPROM)
 
 #define GPIO_DRDY_OFF_MPU9250       _PIN_OFF(GPIO_DRDY_MPU9250)
 #define GPIO_DRDY_OFF_LIS3MDL       _PIN_OFF(GPIO_DRDY_LIS3MDL)
-#define GPIO_DRDY_OFF_ICM_20608_G   _PIN_OFF(GPIO_DRDY_ICM_20608_G)
+#define GPIO_DRDY_OFF_ICM_2060X   _PIN_OFF(GPIO_DRDY_ICM_2060X)
 
 
 /* SPI1 off */
@@ -170,8 +164,9 @@ __BEGIN_DECLS
 #define PX4_SPIDEV_BMA          9
 #define PX4_SPIDEV_EXT0         10
 #define PX4_SPIDEV_EXT1         11
-#define PX4_SPIDEV_EEPROM	12
-
+#define PX4_SPIDEV_EEPROM	    12
+#define PX4_SPIDEV_ICM_20608    13
+#define PX4_SPIDEV_ICM_20602	14
 
 /* I2C busses */
 #define PX4_I2C_BUS_ONBOARD     1
@@ -191,15 +186,17 @@ __BEGIN_DECLS
  *
  * These are the channel numbers of the ADCs of the microcontroller that can be used by the Px4 Firmware in the adc driver
  */
-#define ADC_CHANNELS (1 << 2) | (1 << 3) | (1 << 4) | (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 14)
-
 // ADC defines to be used in sensors.cpp to read from a particular channel
-#define ADC_BATTERY_VOLTAGE_CHANNEL	2
-#define ADC_BATTERY_CURRENT_CHANNEL	3
-#define ADC_5V_RAIL_SENSE		4
-#define ADC_BATTERY2_VOLTAGE_CHANNEL	11
-#define ADC_BATTERY2_CURRENT_CHANNEL	13
-//#define ADC_RC_RSSI_CHANNEL		11
+
+#define ADC_BATTERY1_VOLTAGE_CHANNEL	2   // PA2
+#define ADC_BATTERY1_CURRENT_CHANNEL	3   // PA3
+#define ADC_5V_RAIL_SENSE				4   // PA4
+#define ADC_BATTERY2_VOLTAGE_CHANNEL	11  // PC1
+#define ADC_BATTERY2_CURRENT_CHANNEL	13  // PC3
+
+#define ADC_CHANNELS (1 << ADC_BATTERY1_VOLTAGE_CHANNEL) | (1 << ADC_BATTERY1_CURRENT_CHANNEL) | \
+	(1 << ADC_5V_RAIL_SENSE) | \
+	(1 << ADC_BATTERY2_VOLTAGE_CHANNEL) | (1 << ADC_BATTERY2_CURRENT_CHANNEL)
 
 /* Define Battery 1 Voltage Divider and A per V
  */
@@ -232,14 +229,16 @@ __BEGIN_DECLS
 #define GPIO_GPIO5_OUTPUT	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTD|GPIO_PIN14)
 
 /* Power supply control and monitoring GPIOs */
-#define GPIO_VDD_BRICK_VALID	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTB|GPIO_PIN5)
-#define GPIO_VDD_BRICK2_VALID	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTG|GPIO_PIN5)
-#define GPIO_VDD_3V3_SENSORS_EN	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN3)
+#define GPIO_nVDD_BRICK1_VALID	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTB|GPIO_PIN5)
+#define GPIO_nVDD_BRICK2_VALID	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTG|GPIO_PIN5)
+#define BOARD_NUMBER_BRICKS     2
+#define GPIO_nVDD_USB_VALID		(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN0)
+#define GPIO_VDD_3V3_SENSORS_EN	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN3)
 #define GPIO_VDD_3V3_PERIPH_EN	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN5)
 #define GPIO_VDD_5V_PERIPH_EN	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTG|GPIO_PIN10)
-#define GPIO_VDD_5V_PERIPH_OC	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTG|GPIO_PIN4)
-#define GPIO_VDD_5V_HIPOWER_OC	(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTF|GPIO_PIN3)
-#define GPIO_VBUS_VALID		(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN0)
+#define GPIO_VDD_5V_HIPOWER_EN	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTF|GPIO_PIN4)
+#define GPIO_VDD_5V_PERIPH_OC	(GPIO_INPUT|GPIO_FLOAT|GPIO_PORTG|GPIO_PIN4)
+#define GPIO_VDD_5V_HIPOWER_OC	(GPIO_INPUT|GPIO_FLOAT|GPIO_PORTF|GPIO_PIN3)
 
 /* Tone alarm output */
 #define TONE_ALARM_TIMER	2	/* timer 2 */
@@ -283,40 +282,30 @@ __BEGIN_DECLS
 #define GPIO_OTGFS_VBUS		(GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|GPIO_OPENDRAIN|GPIO_PORTA|GPIO_PIN9)
 
 /* High-resolution timer */
-#define HRT_TIMER		3	/* use timer8 for the HRT */
-#define HRT_TIMER_CHANNEL	4	/* use capture/compare channel */
+#define HRT_TIMER           3 /* use timer 3 for the HRT */
+#define HRT_TIMER_CHANNEL   4 /* use capture/compare channel 4 */
 
-#define HRT_PPM_CHANNEL		3	/* use capture/compare channel 2 */
-#define GPIO_PPM_IN			(GPIO_ALT|GPIO_AF2|GPIO_PULLUP|GPIO_PORTB|GPIO_PIN0)
-
-//#define RC_SERIAL_PORT		"/dev/ttyS4"
+#define HRT_PPM_CHANNEL     3	/* use capture/compare channel 3 */
+#define GPIO_PPM_IN         (GPIO_ALT|GPIO_AF2|GPIO_PULLUP|GPIO_PORTB|GPIO_PIN0)
 
 /* PWM input driver. Use FMU AUX5 pins attached to timer4 channel 2 */
-#define PWMIN_TIMER			4
-#define PWMIN_TIMER_CHANNEL		2
+#define PWMIN_TIMER         4
+#define PWMIN_TIMER_CHANNEL 2
 #define GPIO_PWM_IN			GPIO_TIM4_CH2IN_2
 
-#define GPIO_RSSI_IN 			(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN1)
-#define GPIO_LED_SAFETY			(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN3)
-#define GPIO_BTN_SAFETY			(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN4)
+#define GPIO_BTN_SAFETY_FMU		(GPIO_INPUT|GPIO_FLOAT|GPIO_PORTC|GPIO_PIN4)
 #define GPIO_SBUS_INV			(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN13)
-#define INVERT_RC_INPUT(_s)		px4_arch_gpiowrite(GPIO_SBUS_INV, _s)
+#define INVERT_RC_INPUT(_invert_true)  px4_arch_gpiowrite(GPIO_SBUS_INV, _invert_true)
 
 #define GPIO_8266_GPIO0			(GPIO_INPUT|GPIO_PULLUP|GPIO_PORTE|GPIO_PIN2)
-//TODO:VET#define GPIO_SPEKTRUM_PWR_EN		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN4)
+//TODO: fo not see on schematic #define GPIO_SPEKTRUM_PWR_EN		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN4)
 #define GPIO_8266_PD			(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN5)
 #define GPIO_8266_RST			(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN6)
 
-/* Power switch controls ******************************************************/
-
-#define POWER_SPEKTRUM(_s)		px4_arch_gpiowrite(GPIO_SPEKTRUM_PWR_EN, (1-_s))
-#define SPEKTRUM_RX_AS_UART()		px4_arch_configgpio(GPIO_USART1_RX)
-
-// FMUv4-pro has a separate GPIO for serial RC output
-#define GPIO_RC_OUT			(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN0)
-#define SPEKTRUM_RX_AS_GPIO()		px4_arch_configgpio(GPIO_RC_OUT)
-#define SPEKTRUM_RX_HIGH(_s)		px4_arch_gpiowrite(GPIO_RC_OUT, (_s))
-
+/* No Power switch controls or binding control *********************************************
+ * V4 Pro does not have control to bind SPEKTRUM - there is only 5V VCC on
+ * the connector interface and Spektrum requires VDD 3v3 to be controllable
+ */
 
 #define	BOARD_NAME "PX4FMU_V4PRO"
 
@@ -325,8 +314,9 @@ __BEGIN_DECLS
  * provides the true logic GPIO BOARD_ADC_xxxx macros.
  */
 #define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
-#define BOARD_ADC_BRICK_VALID   (px4_arch_gpioread(GPIO_VDD_BRICK_VALID))
-#define BOARD_ADC_BRICK2_VALID  (px4_arch_gpioread(GPIO_VDD_BRICK2_VALID))
+#define BOARD_ADC_BRICK1_VALID  (!px4_arch_gpioread(GPIO_nVDD_BRICK1_VALID))
+#define BOARD_ADC_BRICK2_VALID  (!px4_arch_gpioread(GPIO_nVDD_BRICK2_VALID))
+#define BOARD_ADC_USB_VALID     (!px4_arch_gpioread(GPIO_nVDD_USB_VALID))
 #define BOARD_ADC_SERVO_VALID   (1)
 #define BOARD_ADC_PERIPH_5V_OC  (!px4_arch_gpioread(GPIO_VDD_5V_PERIPH_OC))
 #define BOARD_ADC_HIPOWER_5V_OC (!px4_arch_gpioread(GPIO_VDD_5V_HIPOWER_OC))
@@ -342,9 +332,9 @@ __BEGIN_DECLS
 		{GPIO_GPIO5_INPUT,       GPIO_GPIO5_OUTPUT,       0}, \
 		{0,                      GPIO_VDD_3V3_SENSORS_EN, 0}, \
 		{0,                      GPIO_VDD_3V3_PERIPH_EN,  0}, \
-		{GPIO_VDD_BRICK_VALID,   0,                       0}, \
-		{GPIO_VDD_BRICK2_VALID,  0,                       0}, \
-		{GPIO_VBUS_VALID,        0,                       0}, \
+		{GPIO_nVDD_BRICK1_VALID, 0,                       0}, \
+		{GPIO_nVDD_BRICK2_VALID, 0,                       0}, \
+		{GPIO_nVDD_USB_VALID,    0,                       0}, \
 		{GPIO_VDD_5V_HIPOWER_OC, 0,                       0}, \
 		{GPIO_VDD_5V_PERIPH_OC,  0,                       0}, }
 
@@ -363,9 +353,9 @@ __BEGIN_DECLS
 #define GPIO_3V3_SENSORS_EN    (1<<6)  /**< PE3  - GPIO_VDD_3V3_SENSORS_EN */
 #define GPIO_3V3_PERIPH_EN     (1<<7)  /**< PC5  - GPIO_VDD_3V3_PERIPH_EN  */
 
-#define GPIO_BRICK_VALID       (1<<8)  /**< PB5  - !GPIO_VDD_BRICK_VALID */
-#define GPIO_BRICK2_VALID      (1<<9)  /**< PG5  - !GPIO_VDD_BRICK2_VALID */
-#define GPIO_USB_VBUS_VALID    (1<<10) /**< PC0  - !GPIO_VBUS_VALID */
+#define GPIO_BRICK1_VALID      (1<<8)  /**< PB5  - GPIO_nVDD_BRICK1_VALID */
+#define GPIO_BRICK2_VALID      (1<<9)  /**< PG5  - GPIO_nVDD_BRICK2_VALID */
+#define GPIO_USB_VBUS_VALID    (1<<10) /**< PC0  - GPIO_nVDD_USB_VALID */
 
 #define GPIO_5V_HIPOWER_OC     (1<<11) /**< PF3  - !GPIO_VDD_5V_RC_OC */
 #define GPIO_5V_PERIPH_OC      (1<<12) /**< PE10 - !GPIO_VDD_5V_PERIPH_OC */
@@ -375,6 +365,9 @@ __BEGIN_DECLS
 /* This board provides a DMA pool and APIs */
 
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
+
+#define BOARD_HAS_ON_RESET 1
+__BEGIN_DECLS
 
 /****************************************************************************************************
  * Public Types

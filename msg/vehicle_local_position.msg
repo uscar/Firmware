@@ -26,6 +26,7 @@ float32 delta_z
 float32 vx 				# North velocity in NED earth-fixed frame, (metres/sec)
 float32 vy				# East velocity in NED earth-fixed frame, (metres/sec)
 float32 vz				# Down velocity in NED earth-fixed frame, (metres/sec)
+float32 z_deriv				# Down position time derivative in NED earth-fixed frame, (metres/sec)
 
 # Velocity reset delta
 float32[2] delta_vxy
@@ -45,8 +46,8 @@ float32 az        # Down acceleration in NED earth-fixed frame, (metres/sec^2)
 float32 yaw				# Euler yaw angle transforming the tangent plane relative to NED earth-fixed frame, -PI..+PI,  (radians) 
 
 # Position of reference point (local NED frame origin) in global (GPS / WGS84) frame
-bool xy_global				# true if position (x, y) is valid and has valid global reference (ref_lat, ref_lon)
-bool z_global				# true if z is valid and has valid global reference (ref_alt)
+bool xy_global				# true if position (x, y) has a valid global reference (ref_lat, ref_lon)
+bool z_global				# true if z has a valid global reference (ref_alt)
 uint64 ref_timestamp			# Time when reference position was set since system start, (microseconds)
 float64 ref_lat				# Reference point latitude, (degrees)
 float64 ref_lon				# Reference point longitude, (degrees)
@@ -59,5 +60,7 @@ uint64 surface_bottom_timestamp		# Time when new bottom surface found since syst
 bool dist_bottom_valid			# true if distance to bottom surface is valid
 float32 eph				# Standard deviation of horizontal position error, (metres)
 float32 epv				# Standard deviation of vertical position error, (metres)
+float32 evh				# Standard deviation of horizontal velocity error, (metres/sec)
+float32 evv				# Standard deviation of horizontal velocity error, (metres/sec)
 
 # TOPICS vehicle_local_position vehicle_local_position_groundtruth vehicle_vision_position

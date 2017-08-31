@@ -64,6 +64,7 @@ ekf_debug(const char *fmt, ...)
 
     va_start(args, fmt);
     ekf_debug_print(fmt, args);
+    va_end(args);
 }
 
 #else
@@ -76,7 +77,7 @@ void swap_var(float &d1, float &d2);
 
 float Vector3f::length() const
 {
-    return sqrt(x*x + y*y + z*z);
+    return sqrtf(x*x + y*y + z*z);
 }
 
 void Vector3f::zero()

@@ -59,6 +59,7 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_gps_position.h>
+#include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/att_pos_mocap.h>
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/distance_sensor.h>
@@ -424,7 +425,9 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			if (fds_init[0].revents & POLLIN) {
 				orb_copy(ORB_ID(sensor_combined), sensor_combined_sub, &sensor);
 
-				if (wait_baro && sensor.timestamp + sensor.baro_timestamp_relative != baro_timestamp) {
+				bool baro_updated = (sensor.baro_timestamp_relative != sensor.RELATIVE_TIMESTAMP_INVALID);
+
+				if (wait_baro && sensor.timestamp + sensor.baro_timestamp_relative != baro_timestamp && baro_updated) {
 					baro_timestamp = sensor.timestamp + sensor.baro_timestamp_relative;
 					baro_wait_for_sample_time = hrt_absolute_time();
 
@@ -1340,6 +1343,12 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			local_pos.dist_bottom_valid = dist_bottom_valid;
 			local_pos.eph = eph;
 			local_pos.epv = epv;
+			// TODO provide calculated values for these
+			local_pos.evh = 0.0f;
+			local_pos.evv = 0.0f;
+
+			// this estimator does not provide a separate vertical position time derivative estimate, so use the vertical velocity
+			local_pos.z_deriv = z_est[1];
 
 			if (local_pos.dist_bottom_valid) {
 				local_pos.dist_bottom = dist_ground;
@@ -1366,10 +1375,17 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 				global_pos.vel_e = local_pos.vy;
 				global_pos.vel_d = local_pos.vz;
 
+				// this estimator does not provide a separate vertical position time derivative estimate, so use the vertical velocity
+				global_pos.pos_d_deriv = local_pos.vz;
+
 				global_pos.yaw = local_pos.yaw;
 
 				global_pos.eph = eph;
 				global_pos.epv = epv;
+
+				// TODO provide calculated values for these
+				global_pos.evh = 0.0f;
+				global_pos.evv = 0.0f;
 
 				if (terrain_estimator.is_valid()) {
 					global_pos.terrain_alt = global_pos.alt - terrain_estimator.get_distance_to_ground();
@@ -1394,5 +1410,75 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	warnx("stopped");
 	mavlink_log_info(&mavlink_log_pub, "[inav] stopped");
 	thread_running = false;
+	return 0;
+}
+
+
+int inav_parameters_init(struct position_estimator_inav_param_handles *h)
+{
+	h->w_z_baro = param_find("INAV_W_Z_BARO");
+	h->w_z_gps_p = param_find("INAV_W_Z_GPS_P");
+	h->w_z_gps_v = param_find("INAV_W_Z_GPS_V");
+	h->w_z_vision_p = param_find("INAV_W_Z_VIS_P");
+	h->w_z_lidar = param_find("INAV_W_Z_LIDAR");
+	h->w_xy_gps_p = param_find("INAV_W_XY_GPS_P");
+	h->w_xy_gps_v = param_find("INAV_W_XY_GPS_V");
+	h->w_xy_vision_p = param_find("INAV_W_XY_VIS_P");
+	h->w_xy_vision_v = param_find("INAV_W_XY_VIS_V");
+	h->w_mocap_p = param_find("INAV_W_MOC_P");
+	h->w_xy_flow = param_find("INAV_W_XY_FLOW");
+	h->w_xy_res_v = param_find("INAV_W_XY_RES_V");
+	h->w_gps_flow = param_find("INAV_W_GPS_FLOW");
+	h->w_acc_bias = param_find("INAV_W_ACC_BIAS");
+	h->flow_k = param_find("INAV_FLOW_K");
+	h->flow_q_min = param_find("INAV_FLOW_Q_MIN");
+	h->lidar_err = param_find("INAV_LIDAR_ERR");
+	h->land_t = param_find("INAV_LAND_T");
+	h->land_disp = param_find("INAV_LAND_DISP");
+	h->land_thr = param_find("INAV_LAND_THR");
+	h->no_vision = param_find("CBRK_NO_VISION");
+	h->delay_gps = param_find("INAV_DELAY_GPS");
+	h->flow_module_offset_x = param_find("INAV_FLOW_DIST_X");
+	h->flow_module_offset_y = param_find("INAV_FLOW_DIST_Y");
+	h->disable_mocap = param_find("INAV_DISAB_MOCAP");
+	h->enable_lidar_alt_est = param_find("INAV_LIDAR_EST");
+	h->lidar_calibration_offset = param_find("INAV_LIDAR_OFF");
+	h->att_ext_hdg_m = param_find("ATT_EXT_HDG_M");
+
+	return 0;
+}
+
+int inav_parameters_update(const struct position_estimator_inav_param_handles *h,
+			   struct position_estimator_inav_params *p)
+{
+	param_get(h->w_z_baro, &(p->w_z_baro));
+	param_get(h->w_z_gps_p, &(p->w_z_gps_p));
+	param_get(h->w_z_gps_v, &(p->w_z_gps_v));
+	param_get(h->w_z_vision_p, &(p->w_z_vision_p));
+	param_get(h->w_z_lidar, &(p->w_z_lidar));
+	param_get(h->w_xy_gps_p, &(p->w_xy_gps_p));
+	param_get(h->w_xy_gps_v, &(p->w_xy_gps_v));
+	param_get(h->w_xy_vision_p, &(p->w_xy_vision_p));
+	param_get(h->w_xy_vision_v, &(p->w_xy_vision_v));
+	param_get(h->w_mocap_p, &(p->w_mocap_p));
+	param_get(h->w_xy_flow, &(p->w_xy_flow));
+	param_get(h->w_xy_res_v, &(p->w_xy_res_v));
+	param_get(h->w_gps_flow, &(p->w_gps_flow));
+	param_get(h->w_acc_bias, &(p->w_acc_bias));
+	param_get(h->flow_k, &(p->flow_k));
+	param_get(h->flow_q_min, &(p->flow_q_min));
+	param_get(h->lidar_err, &(p->lidar_err));
+	param_get(h->land_t, &(p->land_t));
+	param_get(h->land_disp, &(p->land_disp));
+	param_get(h->land_thr, &(p->land_thr));
+	param_get(h->no_vision, &(p->no_vision));
+	param_get(h->delay_gps, &(p->delay_gps));
+	param_get(h->flow_module_offset_x, &(p->flow_module_offset_x));
+	param_get(h->flow_module_offset_y, &(p->flow_module_offset_y));
+	param_get(h->disable_mocap, &(p->disable_mocap));
+	param_get(h->enable_lidar_alt_est, &(p->enable_lidar_alt_est));
+	param_get(h->lidar_calibration_offset, &(p->lidar_calibration_offset));
+	param_get(h->att_ext_hdg_m, &(p->att_ext_hdg_m));
+
 	return 0;
 }

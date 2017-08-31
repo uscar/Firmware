@@ -168,7 +168,6 @@ private:
 
 	perf_counter_t		_sample_perf;
 	perf_counter_t		_comms_errors;
-	perf_counter_t		_buffer_overflows;
 	perf_counter_t		_range_errors;
 	perf_counter_t		_conf_errors;
 
@@ -358,7 +357,6 @@ HMC5883::HMC5883(device::Device *interface, const char *path, enum Rotation rota
 	_mag_topic(nullptr),
 	_sample_perf(perf_alloc(PC_ELAPSED, "hmc5883_read")),
 	_comms_errors(perf_alloc(PC_COUNT, "hmc5883_com_err")),
-	_buffer_overflows(perf_alloc(PC_COUNT, "hmc5883_buf_of")),
 	_range_errors(perf_alloc(PC_COUNT, "hmc5883_rng_err")),
 	_conf_errors(perf_alloc(PC_COUNT, "hmc5883_conf_err")),
 	_sensor_ok(false),
@@ -407,7 +405,6 @@ HMC5883::~HMC5883()
 	// free perf counters
 	perf_free(_sample_perf);
 	perf_free(_comms_errors);
-	perf_free(_buffer_overflows);
 	perf_free(_range_errors);
 	perf_free(_conf_errors);
 }
@@ -445,12 +442,12 @@ out:
 
 int HMC5883::set_range(unsigned range)
 {
-	if (range < 1) {
+	if (range < 0.88f) {
 		_range_bits = 0x00;
 		_range_scale = 1.0f / 1370.0f;
 		_range_ga = 0.88f;
 
-	} else if (range <= 1) {
+	} else if (range <= 1.3f) {
 		_range_bits = 0x01;
 		_range_scale = 1.0f / 1090.0f;
 		_range_ga = 1.3f;
@@ -1000,6 +997,7 @@ HMC5883::collect()
 	// XXX revisit for SPI part, might require a bus type IOCTL
 	unsigned dummy;
 	sensor_is_onboard = !_interface->ioctl(MAGIOCGEXTERNAL, dummy);
+	new_report.is_external = !sensor_is_onboard;
 
 	if (sensor_is_onboard) {
 		// convert onboard so it matches offboard for the
@@ -1043,9 +1041,7 @@ HMC5883::collect()
 	_last_report = new_report;
 
 	/* post a report to the ring */
-	if (_reports->force(&new_report)) {
-		perf_count(_buffer_overflows);
-	}
+	_reports->force(&new_report);
 
 	/* notify anyone waiting for data */
 	poll_notify(POLLIN);
@@ -1426,7 +1422,6 @@ HMC5883::print_info()
 {
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
-	perf_print_counter(_buffer_overflows);
 	printf("poll interval:  %u ticks\n", _measure_ticks);
 	printf("output  (%.2f %.2f %.2f)\n", (double)_last_report.x, (double)_last_report.y, (double)_last_report.z);
 	printf("offsets (%.2f %.2f %.2f)\n", (double)_scale.x_offset, (double)_scale.y_offset, (double)_scale.z_offset);

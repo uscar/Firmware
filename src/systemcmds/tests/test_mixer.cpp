@@ -64,7 +64,7 @@
 
 #include "tests_main.h"
 
-#include <unit_test/unit_test.h>
+#include <unit_test.h>
 
 static int	mixer_callback(uintptr_t handle,
 			       uint8_t control_group,
@@ -75,7 +75,7 @@ const unsigned output_max = 8;
 static float actuator_controls[output_max];
 static bool should_prearm = false;
 
-#define NAN_VALUE 0.0f/0.0f
+#define NAN_VALUE (0.0f/0.0f)
 
 #ifdef __PX4_DARWIN
 #define MIXER_DIFFERENCE_THRESHOLD 30
@@ -123,7 +123,7 @@ private:
 	MixerGroup mixer_group;
 };
 
-MixerTest::MixerTest() : UnitTest(),
+MixerTest::MixerTest() :
 	mixer_group(mixer_callback, 0)
 {
 }
@@ -176,14 +176,10 @@ bool MixerTest::loadAllTest()
 
 	if (dp == nullptr) {
 		PX4_ERR("File open failed");
-		// this is not an FTP error, abort directory by simulating eof
 		return false;
 	}
 
 	struct dirent *result = nullptr;
-
-	// move to the requested offset
-	//seekdir(dp, payload->offset);
 
 	for (;;) {
 		errno = 0;

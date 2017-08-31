@@ -67,6 +67,30 @@ static inline const char *px4_board_name(void)
 }
 
 /**
+ * get the board sub type
+ */
+static inline const char *px4_board_sub_type(void)
+{
+	return board_get_hw_type_name();
+}
+
+/**
+ * get the board HW version
+ */
+static inline int px4_board_hw_version(void)
+{
+	return board_get_hw_version();
+}
+
+/**
+ * get the board HW revision
+ */
+static inline int px4_board_hw_revision(void)
+{
+	return board_get_hw_revision();
+}
+
+/**
  * get the build URI (used for crash logging)
  */
 static inline const char *px4_build_uri(void)
@@ -119,9 +143,20 @@ __EXPORT const char *px4_toolchain_version(void);
 __EXPORT const char *px4_firmware_version_string(void);
 
 /**
+ * get the git branch name (can be empty, for example if HEAD points to a tag)
+ */
+__EXPORT const char *px4_firmware_git_branch(void);
+
+
+/**
  * Firmware version in binary form (first part of the git tag)
  */
 __EXPORT uint64_t px4_firmware_version_binary(void);
+
+/**
+ * MAVLink lib version in binary form (first part of the git tag)
+ */
+__EXPORT uint64_t px4_mavlink_lib_version_binary(void);
 
 /**
  * Operating system version in binary form (first part of the git tag)

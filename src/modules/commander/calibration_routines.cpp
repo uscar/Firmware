@@ -55,6 +55,8 @@
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/sensor_combined.h>
 
+#include <drivers/drv_tone_alarm.h>
+
 #include "calibration_routines.h"
 #include "calibration_messages.h"
 #include "commander_helper.h"
@@ -757,6 +759,7 @@ calibrate_return calibrate_from_orientation(orb_advert_t *mavlink_log_pub,
 		/* inform user about already handled side */
 		if (side_data_collected[orient]) {
 			orientation_failures++;
+			set_tune(TONE_NOTIFY_NEGATIVE_TUNE);
 			calibration_log_info(mavlink_log_pub, "[cal] %s side already completed", detect_orientation_str(orient));
 			usleep(20000);
 			continue;
@@ -782,7 +785,12 @@ calibrate_return calibrate_from_orientation(orb_advert_t *mavlink_log_pub,
 
 		// Note that this side is complete
 		side_data_collected[orient] = true;
-		tune_neutral(true);
+
+		// output neutral tune
+		set_tune(TONE_NOTIFY_NEUTRAL_TUNE);
+
+		// temporary priority boost for the white blinking led to come trough
+		rgbled_set_color_and_mode(led_control_s::COLOR_WHITE, led_control_s::MODE_BLINK_FAST, 3, 1);
 		usleep(200000);
 	}
 
@@ -828,7 +836,6 @@ bool calibrate_cancel_check(orb_advert_t *mavlink_log_pub, int cancel_sub)
 
 	if (px4_poll(&fds[0], 1, 0) > 0) {
 		struct vehicle_command_s cmd;
-		memset(&cmd, 0, sizeof(cmd));
 
 		orb_copy(ORB_ID(vehicle_command), cancel_sub, &cmd);
 

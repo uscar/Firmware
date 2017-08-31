@@ -45,7 +45,6 @@
 
 #include <boot_config.h>
 
-#include <systemlib/visibility.h>
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -221,7 +220,8 @@ void __wrap_sched_process_timer(void)
 				case Repeating:
 					timers[t].count = timers[t].reload;
 
-				/* fall through to callback */
+				/* FALLTHROUGH */
+				/* to callback */
 				case Timeout:
 					if (timers[t].usr.cb) {
 						timers[t].usr.cb(t, timers[t].usr.context);
