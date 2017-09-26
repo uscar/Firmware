@@ -296,24 +296,7 @@ int main_thread(int argc, char *argv[]) {
             pos_setpoint_pub.update();
         }
 
-        /*if (!lpos.xy_valid || !lpos.z_valid || lpos.z - current_setpoint.z > SHUTOFF_H || hrt_absolute_time() - start_time > E_TIMEOUT ||
-            (hrt_absolute_time() - start_time > TIMEOUT && (lpos.z - initialZ) > LAND_THRESHOLD)) {
-
-          vehicle_setpoint_pub.get().yaw_sp_move_rate = 0.0f;
-          vehicle_setpoint_pub.get().thrust = 0.0f;
-          vehicle_setpoint_pub.get().fw_control_yaw = false;
-          vehicle_setpoint_pub.get().disable_mc_yaw_control = false;
-          vehicle_setpoint_pub.get().apply_flaps = false;
-          vehicle_setpoint_pub.update();
-
-          actuator_armed_pub.get().ready_to_arm = false;
-          actuator_armed_pub.get().armed = false;
-          actuator_armed_pub.update();
-          run_task = false;
-
-          mavlink_and_console_log_info(&mavlink_log_pub, "ABORTING");
-          break;
-
+        if (!lpos.xy_valid || !lpos.z_valid) {
           PX4_LOG("LOST FLOW ESTIMATION, RUNNING ATTITUDE HOLD");
 
           control_mode_pub.get().flag_control_position_enabled = false;
@@ -335,7 +318,7 @@ int main_thread(int argc, char *argv[]) {
           setQuaternionAttSetpoint(vehicle_setpoint_pub.get(), 0.0, 0.0, 0.0);
           vehicle_setpoint_pub.update();
 
-        } else if (hrt_absolute_time() - start_time > TIMEOUT) {
+        } /*else if (hrt_absolute_time() - start_time > TIMEOUT) {
           // LANDING TIME
           current_setpoint.x = lpos.x;
           current_setpoint.y = lpos.y;
@@ -379,7 +362,7 @@ int main_thread(int argc, char *argv[]) {
                 (double) current_setpoint.x,
                 (double) current_setpoint.y,
                 (double) current_setpoint.z);
-        } */
+        }*/
 
         usleep(50000);
     }
