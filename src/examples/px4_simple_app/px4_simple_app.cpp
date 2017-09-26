@@ -72,7 +72,7 @@ static orb_advert_t mavlink_log_pub = nullptr; ///< mavlink log pub
 static bool run_task = false;
 static int daemon_task;
 
-static float HEIGHT_OFFSET = -1.0f;
+static float HEIGHT_OFFSET = -5.0f;
 
 int main_thread(int argc, char *argv[]);
 
@@ -267,7 +267,7 @@ int main_thread(int argc, char *argv[]) {
             control_mode_pub.get().flag_control_rattitude_enabled = false;
             control_mode_pub.get().flag_control_velocity_enabled = false;
             control_mode_pub.get().flag_control_climb_rate_enabled = false;
-            control_mode_pub.get().flag_control_rates_enabled = true;
+            control_mode_pub.get().flag_control_rates_enabled = false;
             control_mode_pub.get().flag_control_manual_enabled = true;
             control_mode_pub.update();
         } else {
